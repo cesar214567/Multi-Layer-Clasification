@@ -1,0 +1,341 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-01-23T20:53:00.000Z",
+  "__export_source": "insomnia.desktop.app:v2023.5.8",
+  "resources": [
+    {
+      "_id": "req_auth_register",
+      "parentId": "fld_auth",
+      "type": "Request",
+      "name": "Register User",
+      "method": "POST",
+      "url": "{{ base_url }}/api/auth/",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"action\": \"register\",\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_auth_login",
+      "parentId": "fld_auth",
+      "type": "Request",
+      "name": "Login",
+      "method": "POST",
+      "url": "{{ base_url }}/api/auth/",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"action\": \"login\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_auth_logout",
+      "parentId": "fld_auth",
+      "type": "Request",
+      "name": "Logout",
+      "method": "POST",
+      "url": "{{ base_url }}/api/auth/",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"action\": \"logout\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_users_list",
+      "parentId": "fld_users",
+      "type": "Request",
+      "name": "List All Users",
+      "method": "GET",
+      "url": "{{ base_url }}/api/users/",
+      "headers": []
+    },
+    {
+      "_id": "req_users_get",
+      "parentId": "fld_users",
+      "type": "Request",
+      "name": "Get Single User",
+      "method": "GET",
+      "url": "{{ base_url }}/api/users/{{ user_id }}/",
+      "headers": []
+    },
+    {
+      "_id": "req_users_create",
+      "parentId": "fld_users",
+      "type": "Request",
+      "name": "Create User",
+      "method": "POST",
+      "url": "{{ base_url }}/api/users/",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Jane Smith\",\n  \"email\": \"jane@example.com\",\n  \"password\": \"password123\",\n  \"project_ids\": []\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_users_update",
+      "parentId": "fld_users",
+      "type": "Request",
+      "name": "Update User",
+      "method": "PUT",
+      "url": "{{ base_url }}/api/users/{{ user_id }}/",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane.doe@example.com\",\n  \"password\": \"newpassword123\",\n  \"is_active\": true\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_users_delete",
+      "parentId": "fld_users",
+      "type": "Request",
+      "name": "Delete User",
+      "method": "DELETE",
+      "url": "{{ base_url }}/api/users/{{ user_id }}/",
+      "headers": []
+    },
+    {
+      "_id": "req_projects_list",
+      "parentId": "fld_projects",
+      "type": "Request",
+      "name": "List All Projects",
+      "method": "GET",
+      "url": "{{ base_url }}/api/projects/",
+      "headers": []
+    },
+    {
+      "_id": "req_projects_get",
+      "parentId": "fld_projects",
+      "type": "Request",
+      "name": "Get Single Project",
+      "method": "GET",
+      "url": "{{ base_url }}/api/projects/{{ project_id }}/",
+      "headers": []
+    },
+    {
+      "_id": "req_projects_create",
+      "parentId": "fld_projects",
+      "type": "Request",
+      "name": "Create Project",
+      "method": "POST",
+      "url": "{{ base_url }}/api/projects/",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"My Project\",\n  \"description\": \"A test project\",\n  \"tags\": {\n    \"category\": \"web\",\n    \"priority\": \"high\"\n  }\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_projects_update",
+      "parentId": "fld_projects",
+      "type": "Request",
+      "name": "Update Project",
+      "method": "PUT",
+      "url": "{{ base_url }}/api/projects/{{ project_id }}/",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Updated Project Name\",\n  \"description\": \"Updated description\",\n  \"tags\": {\n    \"category\": \"mobile\",\n    \"status\": \"active\"\n  }\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_projects_delete",
+      "parentId": "fld_projects",
+      "type": "Request",
+      "name": "Delete Project",
+      "method": "DELETE",
+      "url": "{{ base_url }}/api/projects/{{ project_id }}/",
+      "headers": []
+    },
+    {
+      "_id": "req_tags_list",
+      "parentId": "fld_tags",
+      "type": "Request",
+      "name": "List All Tags",
+      "method": "GET",
+      "url": "{{ base_url }}/api/tags/",
+      "headers": []
+    },
+    {
+      "_id": "req_tags_get",
+      "parentId": "fld_tags",
+      "type": "Request",
+      "name": "Get Single Tag",
+      "method": "GET",
+      "url": "{{ base_url }}/api/tags/{{ tag_id }}/",
+      "headers": []
+    },
+    {
+      "_id": "req_tags_create",
+      "parentId": "fld_tags",
+      "type": "Request",
+      "name": "Create Tag",
+      "method": "POST",
+      "url": "{{ base_url }}/api/tags/",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"numeric_id\": 1,\n  \"name\": \"Important\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_tags_update",
+      "parentId": "fld_tags",
+      "type": "Request",
+      "name": "Update Tag",
+      "method": "PUT",
+      "url": "{{ base_url }}/api/tags/{{ tag_id }}/",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"numeric_id\": 2,\n  \"name\": \"Urgent\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_tags_delete",
+      "parentId": "fld_tags",
+      "type": "Request",
+      "name": "Delete Tag",
+      "method": "DELETE",
+      "url": "{{ base_url }}/api/tags/{{ tag_id }}/",
+      "headers": []
+    },
+    {
+      "_id": "req_s3_upload",
+      "parentId": "fld_s3",
+      "type": "Request",
+      "name": "Upload File to S3",
+      "method": "POST",
+      "url": "{{ base_url }}/s3/",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"bucket_name\": \"test-bucket\",\n  \"key\": \"myfile.txt\",\n  \"content\": \"Hello S3!\",\n  \"project_id\": \"{{ project_id }}\",\n  \"tag_ids\": [\"{{ tag_id }}\"]\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_home",
+      "parentId": "fld_misc",
+      "type": "Request",
+      "name": "Home (Welcome)",
+      "method": "GET",
+      "url": "{{ base_url }}/",
+      "headers": []
+    },
+    {
+      "_id": "req_login_page",
+      "parentId": "fld_misc",
+      "type": "Request",
+      "name": "Login Page",
+      "method": "GET",
+      "url": "{{ base_url }}/login/",
+      "headers": []
+    },
+    {
+      "_id": "fld_auth",
+      "parentId": "wrk_main",
+      "type": "RequestGroup",
+      "name": "Authentication"
+    },
+    {
+      "_id": "fld_users",
+      "parentId": "wrk_main",
+      "type": "RequestGroup",
+      "name": "Users CRUD"
+    },
+    {
+      "_id": "fld_projects",
+      "parentId": "wrk_main",
+      "type": "RequestGroup",
+      "name": "Projects CRUD"
+    },
+    {
+      "_id": "fld_tags",
+      "parentId": "wrk_main",
+      "type": "RequestGroup",
+      "name": "Tags CRUD"
+    },
+    {
+      "_id": "fld_s3",
+      "parentId": "wrk_main",
+      "type": "RequestGroup",
+      "name": "S3 Storage"
+    },
+    {
+      "_id": "fld_misc",
+      "parentId": "wrk_main",
+      "type": "RequestGroup",
+      "name": "Miscellaneous"
+    },
+    {
+      "_id": "wrk_main",
+      "type": "Workspace",
+      "name": "Django API - User, Project, Tag CRUD",
+      "description": "Complete CRUD API for User, Project, and Tag management with authentication"
+    },
+    {
+      "_id": "env_base",
+      "parentId": "wrk_main",
+      "type": "Environment",
+      "name": "Base Environment",
+      "data": {
+        "base_url": "http://localhost:8000",
+        "user_id": "",
+        "project_id": "",
+        "tag_id": ""
+      }
+    }
+  ]
+}
