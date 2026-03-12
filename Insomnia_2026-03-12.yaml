@@ -1,0 +1,830 @@
+type: collection.insomnia.rest/5.0
+schema_version: "5.1"
+name: Project v2
+meta:
+  id: wrk_d3561dabde3a4f90b5fd907040b7dd16
+  created: 1773090997600
+  modified: 1773090997600
+  description: ""
+collection:
+  - name: Django API - User, Project, Tag CRUD
+    meta:
+      id: fld_1976aba1cdc7417ba5ce9aa8654097e3
+      created: 1772736061031
+      modified: 1773091179373
+      sortKey: -1772736043140
+      description: Complete CRUD API for User, Project, Tag, TrainedModel, and
+        PreTrainedModel management with authentication
+    children:
+      - name: Authentication
+        meta:
+          id: fld_57d799ffb0234ceb8aa6bfb7a1895950
+          created: 1772736061033
+          modified: 1772736061033
+          sortKey: -1772736043139
+          description: ""
+        children:
+          - url: "{{base_url}}/api/auth/"
+            name: Register User
+            meta:
+              id: req_77053fd170fe43e7acce9375ed0158a6
+              created: 1772736061035
+              modified: 1772736061035
+              isPrivate: false
+              description: Register a new user with name, email, and password
+              sortKey: -1772736043138
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "action": "register",
+                  "name": "John Doe",
+                  "email": "john@example.com",
+                  "password": "password123"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/auth/"
+            name: Login
+            meta:
+              id: req_8bb636428d0141fcb569296cf18871e0
+              created: 1772736061039
+              modified: 1772736061039
+              isPrivate: false
+              description: Login with email and password to start a session
+              sortKey: -1772736043137
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "action": "login",
+                  "email": "john@example.com",
+                  "password": "password123"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/auth/"
+            name: Logout
+            meta:
+              id: req_ebb4ba40c2984a7eb337b1fb88fa06b5
+              created: 1772736061040
+              modified: 1772736061040
+              isPrivate: false
+              description: Logout and end the current session
+              sortKey: -1772736043136
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "action": "logout"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Users CRUD
+        meta:
+          id: fld_847be79108ed48f7b495a4c1dd8fa0ed
+          created: 1772736061040
+          modified: 1772736061040
+          sortKey: -1772736043135
+          description: ""
+        children:
+          - url: "{{base_url}}/api/users/"
+            name: List All Users
+            meta:
+              id: req_eb8dd7ba696b4c3ab9c2e0aa4a92d877
+              created: 1772736061041
+              modified: 1772736061041
+              isPrivate: false
+              description: Get a list of all users
+              sortKey: -1772736043134
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/users/6973e1575ac5d963fedd3150/"
+            name: Get Single User
+            meta:
+              id: req_31b21de737094d38a066ebe3b1c3b36a
+              created: 1772736061042
+              modified: 1773091033662
+              isPrivate: false
+              description: Get details of a specific user by ID
+              sortKey: -1772736043133
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/users/"
+            name: Create User
+            meta:
+              id: req_2becaf9b3496450abd8f260351ec8d81
+              created: 1772736061043
+              modified: 1772736061043
+              isPrivate: false
+              description: Create a new user
+              sortKey: -1772736043132
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "name": "Jane Smith",
+                  "email": "jane@example.com",
+                  "password": "password123",
+                  "project_ids": []
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/users/{{user_id}}/"
+            name: Update User
+            meta:
+              id: req_40e140498f24443a82f3442872b146ef
+              created: 1772736061043
+              modified: 1772736061043
+              isPrivate: false
+              description: Update an existing user (all fields optional)
+              sortKey: -1772736043131
+            method: PUT
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "name": "Jane Doe",
+                  "email": "jane.doe@example.com",
+                  "password": "newpassword123",
+                  "is_active": true
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/users/{{user_id}}/"
+            name: Delete User
+            meta:
+              id: req_279ef2a4a47f47f5be78f957880138ec
+              created: 1772736061044
+              modified: 1772736061044
+              isPrivate: false
+              description: Delete a user by ID
+              sortKey: -1772736043130
+            method: DELETE
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Projects CRUD
+        meta:
+          id: fld_2eb011cdf915424eace3e39e9acb126d
+          created: 1772736061046
+          modified: 1772736061046
+          sortKey: -1772736043129
+          description: ""
+        children:
+          - url: "{{base_url}}/api/projects/69af1b7c7541c5e85106ddb8/"
+            name: Get Single Project
+            meta:
+              id: req_0ad136753e894b53af33c7e2698b1eed
+              created: 1772736061047
+              modified: 1773341903032
+              isPrivate: false
+              description: Get details of a specific project by ID
+              sortKey: -1772736043127
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/projects/"
+            name: List All Projects
+            meta:
+              id: req_7d65548b58a74874ad33709873b98082
+              created: 1772736061047
+              modified: 1772736061047
+              isPrivate: false
+              description: Get a list of all projects
+              sortKey: -1772736043128
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/projects/"
+            name: Create Project
+            meta:
+              id: req_a3c73c9ba3964574b8b475c61c9b663c
+              created: 1772736061048
+              modified: 1773346380728
+              isPrivate: false
+              description: Create a new project
+              sortKey: -1772736043126
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "name": "My Project",
+                  "description": "A test project 2",
+                  "tags": [
+                    {"name": "object", "tag_id": null}
+                  ],
+                  "user_id": "6973e1575ac5d963fedd3150"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/projects/{{project_id}}/"
+            name: Update Project
+            meta:
+              id: req_289a2008f2f848e99d45c112e542e26a
+              created: 1772736061049
+              modified: 1773083891011
+              isPrivate: false
+              description: Update an existing project (all fields optional)
+              sortKey: -1772736043125
+            method: PUT
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "name": "My Project Updated",
+                  "description": "Updated description",
+                  "tags": [
+                    {"name": "object", "tag_id": null}
+                  ],
+                  "user_id": "6973e1575ac5d963fedd3150"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/projects/{{project_id}}/"
+            name: Delete Project
+            meta:
+              id: req_c131f5c31bee46b0be5aedae409184b3
+              created: 1772736061050
+              modified: 1772736061050
+              isPrivate: false
+              description: Delete a project by ID
+              sortKey: -1772736043124
+            method: DELETE
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Tags CRUD
+        meta:
+          id: fld_1baa492c03284c548229a4da88d025f8
+          created: 1772736061050
+          modified: 1772736061050
+          sortKey: -1772736043123
+          description: ""
+        children:
+          - url: "{{base_url}}/api/tags/"
+            name: List All Tags
+            meta:
+              id: req_93cf5c6c62894b57850d55794eb3c2ea
+              created: 1772736061051
+              modified: 1772736061051
+              isPrivate: false
+              description: Get a list of all tags
+              sortKey: -1772736043122
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/tags/{{tag_id}}/"
+            name: Get Single Tag
+            meta:
+              id: req_359d9badb6914c5bb78f3c404e7831ca
+              created: 1772736061052
+              modified: 1772736061052
+              isPrivate: false
+              description: Get details of a specific tag by ID
+              sortKey: -1772736043121
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/tags/"
+            name: Create Tag
+            meta:
+              id: req_a5bd46f1f3794329b78e7fa1bd56eddb
+              created: 1772736061055
+              modified: 1772736061055
+              isPrivate: false
+              description: Create a new tag with a name and optional project_id
+              sortKey: -1772736043120
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "name": "Important",
+                  "project_id": "{{project_id}}"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/tags/{{tag_id}}/"
+            name: Update Tag
+            meta:
+              id: req_5edaf0520ce4464e927f552255452cf4
+              created: 1772736061056
+              modified: 1772736061056
+              isPrivate: false
+              description: Update an existing tag (all fields optional)
+              sortKey: -1772736043119
+            method: PUT
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "name": "Urgent",
+                  "project_id": "{{project_id}}"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/tags/{{tag_id}}/"
+            name: Delete Tag
+            meta:
+              id: req_05294777ee03444696af31f0e0a14d27
+              created: 1772736061057
+              modified: 1772736061057
+              isPrivate: false
+              description: Delete a tag by ID
+              sortKey: -1772736043118
+            method: DELETE
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Trained Models CRUD
+        meta:
+          id: fld_17e4ac1d81d9449bbd56539be5f33863
+          created: 1772736061058
+          modified: 1772736061058
+          sortKey: -1772736043117
+          description: CRUD operations for trained models stored in MongoDB
+        children:
+          - url: "{{base_url}}/api/trained-models/"
+            name: Create Trained Model
+            meta:
+              id: req_0cd06203cefd4f2e80e55a3fe5b7cdf4
+              created: 1772736061058
+              modified: 1773092832424
+              isPrivate: false
+              description: Create a new trained model record with a name and S3 path
+              sortKey: -1772736043114
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "architecture": "MobileNet",
+                  "dataset": "imagenet",
+                  "bucket_name": "pretrained-models",
+                  "name": "MobileNet_imagenet",
+                  "description": "MobileNet with ImageNet weights",
+                  "project_id": "69af1b7c7541c5e85106ddb8"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/trained-models/{{model_id}}/"
+            name: Update Trained Model
+            meta:
+              id: req_6b1e238cbc9f46d3a0f756f86ea8565e
+              created: 1772736061058
+              modified: 1772736061058
+              isPrivate: false
+              description: Update an existing trained model (all fields optional)
+              sortKey: -1772736043113
+            method: PUT
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "name": "My Classifier v2",
+                  "description": "Updated fine-tuned image classifier",
+                  "path": "s3://trained-models/my-classifier-v2.h5",
+                  "format": "h5",
+                  "size": 60817408
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/trained-models/"
+            name: List All Trained Models
+            meta:
+              id: req_73803c7291344d9db1b331b6a4cf5180
+              created: 1772736061058
+              modified: 1772736061058
+              isPrivate: false
+              description: Get a list of all trained models
+              sortKey: -1772736043116
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/trained-models/{{model_id}}/"
+            name: Get Single Trained Model
+            meta:
+              id: req_bef0e92387f341eb8f4866e60a9254eb
+              created: 1772736061058
+              modified: 1772736061058
+              isPrivate: false
+              description: Get details of a specific trained model by ID
+              sortKey: -1772736043115
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/trained-models/{{model_id}}/"
+            name: Delete Trained Model
+            meta:
+              id: req_fb0f8ad136944cdaa5a54ef17b02a39e
+              created: 1772736061058
+              modified: 1772736061058
+              isPrivate: false
+              description: Delete a trained model by ID
+              sortKey: -1772736043112
+            method: DELETE
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: S3 Storage
+        meta:
+          id: fld_7c6c366aa17c4734968bb8b75160f044
+          created: 1772736061058
+          modified: 1772736061058
+          sortKey: -1772736043105
+          description: ""
+        children:
+          - url: "{{base_url}}/s3/"
+            name: Upload File to S3
+            meta:
+              id: req_240f176f163b42d49bff90869214d566
+              created: 1772736061059
+              modified: 1772736061059
+              isPrivate: false
+              description: Upload a file to S3 with optional project and tag associations
+              sortKey: -1772736043104
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "bucket_name": "test-bucket",
+                  "key": "myfile.txt",
+                  "content": "Hello S3!",
+                  "project_id": "{{project_id}}",
+                  "tag_ids": ["{{tag_id}}"]
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: PreTrained Models CRUD
+        meta:
+          id: fld_df72ee72ec064dd98d104ae7446a717c
+          created: 1772736061058
+          modified: 1772736061058
+          sortKey: -1772736043111
+          description: CRUD for pretrained Keras models. POST builds the model from
+            architecture+dataset, saves as .h5, and uploads to S3 automatically.
+        children:
+          - url: "{{base_url}}/api/pretrained-models/69b2f9834cb884a296766e9c/"
+            name: Update PreTrained Model
+            meta:
+              id: req_33b58ed8a58444acb4b5574f2558501a
+              created: 1772736061058
+              modified: 1773349078927
+              isPrivate: false
+              description: Update metadata of an existing pretrained model (all fields
+                optional)
+              sortKey: -1772736043107
+            method: PUT
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "name": "MobileNet_imagenet_v2",
+                  "description": "Updated MobileNet with ImageNet weights",
+                  "enabled": true
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/pretrained-models/{{model_id}}/"
+            name: Get Single PreTrained Model
+            meta:
+              id: req_36bee07d000642d39a8fa977ce346ee9
+              created: 1772736061058
+              modified: 1772736061058
+              isPrivate: false
+              description: Get details of a specific pretrained model by ID
+              sortKey: -1772736043109
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/pretrained-models/{{model_id}}/"
+            name: Delete PreTrained Model
+            meta:
+              id: req_9713743abaac444eb540c45f8ae6ea97
+              created: 1772736061058
+              modified: 1772736061058
+              isPrivate: false
+              description: Delete a pretrained model by ID
+              sortKey: -1772736043106
+            method: DELETE
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/pretrained-models/"
+            name: List All PreTrained Models
+            meta:
+              id: req_b871ff42a0144bada2959e6a3bb23434
+              created: 1772736061058
+              modified: 1772736061058
+              isPrivate: false
+              description: Get a list of all pretrained models
+              sortKey: -1772736043110
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/pretrained-models/"
+            name: Build and Upload PreTrained Model
+            meta:
+              id: req_e176755258b94a94bb849c73e89424e0
+              created: 1772736061058
+              modified: 1773347800533
+              isPrivate: false
+              description: "Build a Keras pretrained model from architecture+dataset, save as
+                .h5, upload to S3 (LocalStack), and persist metadata in MongoDB.
+                Supported architectures: VGG16, VGG19, MobileNet, MobileNetV2,
+                ResNet50, ResNet101, InceptionV3, EfficientNetB0-B7,
+                DenseNet121, etc. Use dataset=imagenet to load pretrained
+                weights; any other value uses random weights."
+              sortKey: -1772736043108
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "architecture": "MobileNetV2",
+                  "dataset": "imagenet",
+                  "bucket_name": "pretrained-models",
+                  "description": "MobileNet with ImageNet weights",
+                  "project_id": "69b32370dd25655bc2c2fead"
+                }	
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Miscellaneous
+        meta:
+          id: fld_77df2491f3494fe4ab14d7b150816b0c
+          created: 1772736061059
+          modified: 1772736061059
+          sortKey: -1772736043103
+          description: ""
+        children:
+          - url: "{{base_url}}/"
+            name: Home (Welcome)
+            meta:
+              id: req_2a63a674836647f98614b75517ab7780
+              created: 1772736061060
+              modified: 1772736061060
+              isPrivate: false
+              description: Get welcome message from home endpoint
+              sortKey: -1772736043102
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/login/"
+            name: Login Page
+            meta:
+              id: req_778655f86b0e4eab92d00de49a4bd436
+              created: 1772736061062
+              modified: 1772736061062
+              isPrivate: false
+              description: Get the login/register HTML page
+              sortKey: -1772736043101
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_ef12b6a454866f414dd087238188f399a1acbff7
+    created: 1773090997604
+    modified: 1773090997604
+environments:
+  name: Base Environment
+  meta:
+    id: env_ef12b6a454866f414dd087238188f399a1acbff7
+    created: 1773090997603
+    modified: 1773091235945
+    isPrivate: false
+  data:
+    base_url: http://dev-dsk-cesarmg-1d-ddce7a67.us-east-1.amazon.com:8000

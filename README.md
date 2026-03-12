@@ -177,7 +177,7 @@ mongodb://admin:password@localhost:27017/?authSource=admin
 ```
 
 #### Remote Connection (from another PC)
-Replace `YOUR_HOSTNAME` with your actual hostname (e.g., `dev-dsk-cesarmg-1d-ddce7a67.us-east-1.amazon.com`):
+Replace `YOUR_HOSTNAME` with your actual hostname :
 
 ```
 mongodb://admin:password@YOUR_HOSTNAME:27017/?authSource=admin
@@ -255,3 +255,143 @@ Make sure you're running the server with:
 python3 manage.py runserver 0.0.0.0:8000
 ```
 Not just `python3 manage.py runserver` (which only binds to localhost).
+
+## PreTrained Model Architectures
+
+When calling `POST /api/pretrained-models/`, the `architecture` field accepts any of the following values (case-insensitive, hyphens and underscores are ignored):
+
+| Architecture | Value to send |
+|---|---|
+| ConvNeXt Base | `ConvNeXtBase` |
+| ConvNeXt Large | `ConvNeXtLarge` |
+| ConvNeXt Small | `ConvNeXtSmall` |
+| ConvNeXt Tiny | `ConvNeXtTiny` |
+| ConvNeXt XLarge | `ConvNeXtXLarge` |
+| DenseNet-121 | `DenseNet121` |
+| DenseNet-169 | `DenseNet169` |
+| DenseNet-201 | `DenseNet201` |
+| EfficientNet B0 | `EfficientNetB0` |
+| EfficientNet B1 | `EfficientNetB1` |
+| EfficientNet B2 | `EfficientNetB2` |
+| EfficientNet B3 | `EfficientNetB3` |
+| EfficientNet B4 | `EfficientNetB4` |
+| EfficientNet B5 | `EfficientNetB5` |
+| EfficientNet B6 | `EfficientNetB6` |
+| EfficientNet B7 | `EfficientNetB7` |
+| EfficientNetV2 B0 | `EfficientNetV2B0` |
+| EfficientNetV2 B1 | `EfficientNetV2B1` |
+| EfficientNetV2 B2 | `EfficientNetV2B2` |
+| EfficientNetV2 B3 | `EfficientNetV2B3` |
+| EfficientNetV2 L | `EfficientNetV2L` |
+| EfficientNetV2 M | `EfficientNetV2M` |
+| EfficientNetV2 S | `EfficientNetV2S` |
+| Inception-ResNet V2 | `InceptionResNetV2` |
+| Inception V3 | `InceptionV3` |
+| MobileNet | `MobileNet` |
+| MobileNet V2 | `MobileNetV2` |
+| MobileNet V3 Large | `MobileNetV3Large` |
+| MobileNet V3 Small | `MobileNetV3Small` |
+| NASNet Large | `NASNetLarge` |
+| NASNet Mobile | `NASNetMobile` |
+| RegNetX 002 | `RegNetX002` |
+| RegNetX 004 | `RegNetX004` |
+| RegNetX 006 | `RegNetX006` |
+| RegNetX 008 | `RegNetX008` |
+| RegNetX 016 | `RegNetX016` |
+| RegNetX 032 | `RegNetX032` |
+| RegNetX 040 | `RegNetX040` |
+| RegNetX 064 | `RegNetX064` |
+| RegNetX 080 | `RegNetX080` |
+| RegNetX 120 | `RegNetX120` |
+| RegNetX 160 | `RegNetX160` |
+| RegNetX 320 | `RegNetX320` |
+| RegNetY 002 | `RegNetY002` |
+| RegNetY 004 | `RegNetY004` |
+| RegNetY 006 | `RegNetY006` |
+| RegNetY 008 | `RegNetY008` |
+| RegNetY 016 | `RegNetY016` |
+| RegNetY 032 | `RegNetY032` |
+| RegNetY 040 | `RegNetY040` |
+| RegNetY 064 | `RegNetY064` |
+| RegNetY 080 | `RegNetY080` |
+| RegNetY 120 | `RegNetY120` |
+| RegNetY 160 | `RegNetY160` |
+| RegNetY 320 | `RegNetY320` |
+| ResNet-101 | `ResNet101` |
+| ResNet-101 V2 | `ResNet101V2` |
+| ResNet-152 | `ResNet152` |
+| ResNet-152 V2 | `ResNet152V2` |
+| ResNet-50 | `ResNet50` |
+| ResNet-50 V2 | `ResNet50V2` |
+| ResNetRS-101 | `ResNetRS101` |
+| ResNetRS-152 | `ResNetRS152` |
+| ResNetRS-200 | `ResNetRS200` |
+| ResNetRS-270 | `ResNetRS270` |
+| ResNetRS-350 | `ResNetRS350` |
+| ResNetRS-420 | `ResNetRS420` |
+| ResNetRS-50 | `ResNetRS50` |
+| VGG-16 | `VGG16` |
+| VGG-19 | `VGG19` |
+| Xception | `Xception` |
+
+### Example request — build a new model
+
+```bash
+curl -X POST http://localhost:8000/api/pretrained-models/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "architecture": "VGG19",
+    "dataset": "imagenet",
+    "project_id": "<optional-project-id>"
+  }'
+```
+
+### Example request — attach an existing model to a project
+
+Use `attach_existing: true` to link an already-created `PreTrainedModel` to a project **without** re-building or re-uploading anything.
+
+The model can be identified in two ways (checked in this order):
+
+**Option 1 — by MongoDB ID:**
+```bash
+curl -X POST http://localhost:8000/api/pretrained-models/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "attach_existing": true,
+    "pretrained_model_id": "<pretrained-model-id>",
+    "project_id": "<project-id>"
+  }'
+```
+
+**Option 2 — by compound name (`{Architecture}_{dataset}`, e.g. `VGG19_imagenet`):**
+```bash
+curl -X POST http://localhost:8000/api/pretrained-models/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "attach_existing": true,
+    "architecture": "VGG19",
+    "dataset": "imagenet",
+    "project_id": "<project-id>"
+  }'
+```
+> `dataset` defaults to `"imagenet"` when omitted.
+
+| Field | Required | Description |
+|---|---|---|
+| `attach_existing` | ✅ | Set to `true` to activate attach mode |
+| `project_id` | ✅ | MongoDB ObjectId of the target `Project` |
+| `pretrained_model_id` | ⚡ priority 1 | MongoDB ObjectId of the existing `PreTrainedModel` |
+| `architecture` | ⚡ priority 2 | Architecture name — used together with `dataset` to build the compound name `{Architecture}_{dataset}` |
+| `dataset` | optional | Dataset name (default: `imagenet`) — used with `architecture` for compound-name lookup |
+
+**Validations performed:**
+- Returns `400` if neither `pretrained_model_id` nor `architecture` is provided.
+- Returns `400` if `architecture` is not a recognised Keras architecture.
+- Returns `404` if no model matches the provided id or compound name.
+- Returns `404` if `project_id` does not match any stored project.
+- Returns `400` if the model is already attached to that project (duplicate prevention).
+
+### Notes
+- The `dataset` field defaults to `"imagenet"`. Only `"imagenet"` weights are officially supported by Keras; any other value will initialize the model with random weights.
+- Architecture names are matched **case-insensitively** with hyphens and underscores ignored, so `"vgg19"`, `"VGG19"`, and `"VGG-19"` all work.
+- When `attach_existing` is `true`, TensorFlow is **not** loaded — the request is fast and lightweight.

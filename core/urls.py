@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import HomeView, S3View, AuthView, UserView, ProjectView, TagView, LoginPageView
+from .views import HomeView, S3View, AuthView, UserView, ProjectView, TagView, LoginPageView, TrainedModelView, PreTrainedModelView
 
 urlpatterns = [
     path('', HomeView.as_view(), name='home'),
@@ -20,4 +20,12 @@ urlpatterns = [
     # Tag CRUD endpoints
     path('api/tags/', TagView.as_view(), name='tag-list-create'),
     path('api/tags/<str:tag_id>/', TagView.as_view(), name='tag-detail'),
+
+    # TrainedModel CRUD endpoints
+    path('api/trained-models/', TrainedModelView.as_view(), name='trained-model-list-create'),
+    path('api/trained-models/<str:model_id>/', TrainedModelView.as_view(), name='trained-model-detail'),
+
+    # PreTrainedModel CRUD endpoints
+    path('api/pretrained-models/', PreTrainedModelView.as_view(), name='pretrained-model-list-create'),
+    path('api/pretrained-models/<str:model_id>/', PreTrainedModelView.as_view(), name='pretrained-model-detail'),
 ]
