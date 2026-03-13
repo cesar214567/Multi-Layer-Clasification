@@ -31,3 +31,8 @@ class S3Service:
             'last_modified': obj_info.get('LastModified'),
             'path': f's3://{bucket_name}/{key}'
         }
+
+    def download_file(self, bucket_name, key):
+        """Download an object from S3 and return its bytes."""
+        response = self.client.get_object(Bucket=bucket_name, Key=key)
+        return response['Body'].read()

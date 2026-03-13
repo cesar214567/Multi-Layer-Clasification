@@ -2,9 +2,8 @@ import os
 
 # Must be set before TensorFlow is imported anywhere (suppresses GPU/TRT library warnings on CPU-only machines)
 #os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '3')
-#os.environ.setdefault('TF_ENABLE_ONEDNN_OPTS', '0')
-#os.environ.setdefault('TF_TRT_LOGGER_VERBOSITY', '0')
-#os.environ.setdefault('CUDA_VISIBLE_DEVICES', '')
+os.environ.setdefault('TF_ENABLE_ONEDNN_OPTS', '0')
+os.environ.setdefault('CUDA_VISIBLE_DEVICES', '')
 
 from django.http import JsonResponse
 from django.views import View
@@ -13,7 +12,7 @@ from django.contrib.auth.hashers import make_password, check_password
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from .services import S3Service
-from .models import User, Project, Image, Tag, TagReference, TrainedModel, TrainedModelReference, PreTrainedModel, PreTrainedModelReference
+from .models import User, Project, Image, Tag, TagReference, TrainedModel, TrainedModelReference, PreTrainedModel, PreTrainedModelReference, ProjectReference
 import json
 from bson import ObjectId
 from functools import wraps
@@ -290,37 +289,29 @@ class AuthView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class UserView(View):
     # GET - List all users or get specific user
+    def _serialize_user(self, user):
+        return {
+            'id': str(user.id),
+            'name': user.name,
+            'email': user.email,
+            'projects': [{
+                'id': str(ref.project_id.id),
+                'name': ref.name,
+            } for ref in (user.projects or [])],
+            'created_at': user.created_at.isoformat() if user.created_at else None,
+            'is_active': user.is_active,
+        }
+
     def get(self, request, user_id=None):
         try:
             if user_id:
-                # Get specific user
                 user = User.objects(id=user_id).first()
                 if not user:
                     return JsonResponse({'status': 'error', 'message': 'User not found'}, status=404)
-                
-                return JsonResponse({
-                    'status': 'success',
-                    'user': {
-                        'id': str(user.id),
-                        'name': user.name,
-                        'email': user.email,
-                        'project_ids': user.project_ids,
-                        'created_at': user.created_at.isoformat() if user.created_at else None,
-                        'is_active': user.is_active
-                    }
-                })
+                return JsonResponse({'status': 'success', 'user': self._serialize_user(user)})
             else:
-                # List all users
                 users = User.objects.all()
-                user_list = [{
-                    'id': str(user.id),
-                    'name': user.name,
-                    'email': user.email,
-                    'project_ids': user.project_ids,
-                    'created_at': user.created_at.isoformat() if user.created_at else None,
-                    'is_active': user.is_active
-                } for user in users]
-                
+                user_list = [self._serialize_user(u) for u in users]
                 return JsonResponse({'status': 'success', 'users': user_list, 'count': len(user_list)})
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
@@ -472,7 +463,10 @@ class ProjectView(View):
                 project.tags = resolve_tag_references(scoped)
                 project.save()
 
-            print("asdsadass")
+            # Add ProjectReference to the user
+            user.projects.append(ProjectReference(project_id=project, name=project.name))
+            user.save()
+
             return JsonResponse({
                 'status': 'success',
                 'message': 'Project created',
@@ -728,7 +722,7 @@ class PreTrainedModelView(View):
             project_id = data.get('project_id')
             architecture = data.get('architecture')
             dataset = data.get('dataset', 'imagenet')
-            bucket_name = data.get('bucket_name', 'pretrained-models')
+            bucket_name = 'pretrained-models'
             available = [k for k in dir(keras.applications) if not k.startswith('_')]
             arch_key = architecture.lower().replace('-', '').replace('_', '')
             matched_arch = next(
@@ -763,10 +757,13 @@ class PreTrainedModelView(View):
                     {'status': 'error', 'message': f'Project not found'},
                     status=400,
                 )
+            
+            print("LLEGO ACA")
             compound_name = f'{matched_arch}_{dataset.lower()}'
             pretrained_model = PreTrainedModel.objects(name=compound_name).first()
             if pretrained_model:
                 # Check if the model is already attached to this project (avoid duplicates)
+                print("EXISTS")
                 already_attached = any(
                     str(ref.name) == str(pretrained_model.name) for ref in project.pretrained_models
                 )
@@ -814,6 +811,7 @@ class PreTrainedModelView(View):
                 # ------------------------------------------------------------------
                 # --- Build Keras model ---
                 # List of available architecture names from keras.applications
+
                 arch_class = getattr(keras.applications, matched_arch)
 
                 # Use weights=dataset if keras supports it (imagenet), else weights=None
@@ -822,12 +820,12 @@ class PreTrainedModelView(View):
 
                 keras_model = arch_class(weights=weights, include_top=True)
 
-                # --- Save model to a temp .h5 file and read bytes ---
+                # --- Save model to a temp file and read bytes ---
                 with tempfile.NamedTemporaryFile(suffix='.h5', delete=False) as tmp:
                     tmp_path = tmp.name
 
                 try:
-                    keras_model.save(tmp_path)
+                    keras_model.save_weights(tmp_path)
                     file_size = os.path.getsize(tmp_path)
                     with open(tmp_path, 'rb') as f:
                         model_bytes = f.read()
@@ -1074,50 +1072,106 @@ class TrainedModelView(View):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class S3View(View):
-    def __init__(self):
-        super().__init__()
-        self.s3_service = S3Service()
-    
+class InferenceView(View):
     def post(self, request):
+        import tempfile
+        import numpy as np
+        from PIL import Image as PILImage
+        from io import BytesIO
+
         try:
-            data = json.loads(request.body)
-            bucket_name = data.get('bucket_name', 'test-bucket')
-            key = data.get('key', 'test-file')
-            content = data.get('content', 'Hello S3!')
-            project_id = data.get('project_id')
-            tag_ids = data.get('tag_ids', [])
-            
-            self.s3_service.create_bucket(bucket_name)
-            metadata = self.s3_service.upload_file(bucket_name, key, content)
-            
-            # Create tag references from provided tag_ids
-            tag_references = []
-            for tag_id in tag_ids:
-                tag = Tag.objects(id=tag_id).first()
-                if tag:
-                    tag_references.append(TagReference(tag_id=tag, name=tag.name))
-            
-            # Save image metadata to MongoDB
-            image = Image(
-                path=metadata['path'],
-                bucket_name=bucket_name,
-                key=key,
-                size=metadata['size'],
-                format=key.split('.')[-1] if '.' in key else 'unknown',
-                content_type=metadata['content_type'],
-                etag=metadata['etag'],
-                last_modified=metadata['last_modified'],
-                project=project_id if project_id else None,
-                tag_references=tag_references
-            )
-            image.save()
-            
+            project_id = request.POST.get('project_id')
+            pretrained_model_id = request.POST.get('pretrained_model_id')
+            image_file = request.FILES.get('image')
+
+            if not project_id or not pretrained_model_id or not image_file:
+                return JsonResponse({'status': 'error', 'message': 'project_id, pretrained_model_id, and image are required'}, status=400)
+
+            # Validate project and model
+            project = Project.objects(id=project_id).first()
+            if not project:
+                return JsonResponse({'status': 'error', 'message': 'Project not found'}, status=404)
+
+            pretrained_model = PreTrainedModel.objects(id=pretrained_model_id).first()
+            if not pretrained_model:
+                return JsonResponse({'status': 'error', 'message': 'PreTrainedModel not found'}, status=404)
+
+            # Verify model is attached to project
+            attached = any(str(ref.model_id.id) == pretrained_model_id for ref in project.pretrained_models)
+            if not attached:
+                return JsonResponse({'status': 'error', 'message': 'Model is not attached to this project'}, status=400)
+
+            # Download model from S3
+            s3_path = pretrained_model.path  # e.g. s3://pretrained-models/trained-models/VGG19_imagenet.h5
+            parts = s3_path.replace('s3://', '').split('/', 1)
+            bucket_name, s3_key = parts[0], parts[1]
+
+            s3_service = S3Service()
+            model_bytes = s3_service.download_file(bucket_name, s3_key)
+
+            # Load Keras model from bytes
+            import tensorflow as tf
+            with tempfile.NamedTemporaryFile(suffix='.h5', delete=False) as tmp:
+                tmp.write(model_bytes)
+                tmp_path = tmp.name
+
+            try:
+                # Reconstruct architecture then load weights
+                arch_name = pretrained_model.name.rsplit('_', 1)[0]
+                available = [a for a in dir(tf.keras.applications) if not a.startswith('_')]
+                arch_key = arch_name.lower().replace('-', '').replace('_', '')
+                matched_arch = next(
+                    (a for a in available if a.lower().replace('-', '').replace('_', '') == arch_key),
+                    None,
+                )
+                if not matched_arch:
+                    return JsonResponse({'status': 'error', 'message': f'Unknown architecture "{arch_name}"'}, status=400)
+
+                arch_class = getattr(tf.keras.applications, matched_arch)
+                keras_model = arch_class(weights=None, include_top=True)
+                keras_model.load_weights(tmp_path)
+            finally:
+                os.unlink(tmp_path)
+
+            # Determine expected input size from model
+            input_shape = keras_model.input_shape  # e.g. (None, 224, 224, 3)
+            target_h, target_w = input_shape[1], input_shape[2]
+
+            # Load and resize image
+            img = PILImage.open(BytesIO(image_file.read())).convert('RGB')
+            img = img.resize((target_w, target_h))
+            img_array = np.array(img, dtype='float32')
+            img_array = np.expand_dims(img_array, axis=0)
+
+            # Preprocess using the architecture-specific preprocessor
+            preprocess_fn = None
+            try:
+                module = getattr(tf.keras.applications, matched_arch.lower(), None)
+                if module is None:
+                    for mod_name in dir(tf.keras.applications):
+                        if mod_name.lower() == matched_arch.lower():
+                            module = getattr(tf.keras.applications, mod_name)
+                            break
+                if module and hasattr(module, 'preprocess_input'):
+                    preprocess_fn = module.preprocess_input
+            except Exception:
+                pass
+
+            if preprocess_fn:
+                img_array = preprocess_fn(img_array)
+
+            # Run inference
+            predictions = keras_model.predict(img_array)
+
+            # Decode predictions (ImageNet top-5)
+            decoded = tf.keras.applications.imagenet_utils.decode_predictions(predictions, top=5)[0]
+            results = [{'class_id': class_id, 'label': label, 'confidence': round(float(score) * 100, 2)} for class_id, label, score in decoded]
+
             return JsonResponse({
-                'status': 'success', 
-                'message': 'File uploaded to S3',
-                'image_id': str(image.id),
-                'metadata': metadata
+                'status': 'success',
+                'model_name': pretrained_model.name,
+                'input_size': f'{target_w}x{target_h}',
+                'predictions': results,
             })
         except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)})
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

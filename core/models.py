@@ -11,11 +11,16 @@ class TagReference(EmbeddedDocument):
     tag_id = ReferenceField(Tag, required=True)
     name = StringField(required=True)
 
+class ProjectReference(EmbeddedDocument):
+    project_id = ReferenceField('Project', required=True)
+    name = StringField(required=True)
+
 class User(Document):
     name = StringField(max_length=100, required=True)
     email = EmailField(required=True, unique=True)
     password_hash = StringField(required=True)
     project_ids = ListField(StringField())
+    projects = ListField(EmbeddedDocumentField(ProjectReference))
     created_at = DateTimeField(default=datetime.datetime.now(datetime.timezone.utc))
     is_active = BooleanField(default=True)
     

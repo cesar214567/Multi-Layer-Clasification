@@ -1,10 +1,10 @@
 from django.urls import path
-from .views import HomeView, S3View, AuthView, UserView, ProjectView, TagView, LoginPageView, TrainedModelView, PreTrainedModelView
+from .views import HomeView, InferenceView, AuthView, UserView, ProjectView, TagView, LoginPageView, TrainedModelView, PreTrainedModelView
 
 urlpatterns = [
     path('', HomeView.as_view(), name='home'),
     path('login/', LoginPageView.as_view(), name='login'),
-    path('s3/', S3View.as_view(), name='s3'),
+    path('api/inference/', InferenceView.as_view(), name='inference'),
     
     # Authentication endpoints
     path('api/auth/', AuthView.as_view(), name='auth'),
