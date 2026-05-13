@@ -25,12 +25,14 @@ Django application with complete CRUD API for User, Project, and Tag management,
 
 ## Setup
 
-1. **Install dependencies:**
+1. **Python 3.10+ required** (for ultralytics/YOLO support)
+
+2. **Install dependencies:**
 ```bash
 pip install -r requirements.txt
 ```
 
-2. **Start services:**
+3. **Start services:**
 ```bash
 docker-compose up -d
 ```
@@ -74,6 +76,46 @@ python3 manage.py runserver 0.0.0.0:8000
 - `POST /api/tags/` - Create tag
 - `PUT /api/tags/<id>/` - Update tag
 - `DELETE /api/tags/<id>/` - Delete tag
+
+### Trained Models (Full CRUD)
+- `GET /api/trained-models/` - List all trained models
+- `GET /api/trained-models/<id>/` - Get single trained model (includes version history)
+- `POST /api/trained-models/` - Create trained model (requires `project_id`)
+- `PUT /api/trained-models/<id>/` - Update trained model (creates a new version)
+- `DELETE /api/trained-models/<id>/` - Delete trained model
+
+### Training
+- `POST /api/trained-models/train/` - Train a model using project images
+
+### Trained Model Inference
+- `POST /api/trained-models/inference/` - Run inference with a trained model (multipart/form-data: `trained_model_id`, `image`, optional `version`)
+
+### PreTrained Models (Full CRUD)
+- `GET /api/pretrained-models/` - List all pretrained models
+- `GET /api/pretrained-models/<id>/` - Get single pretrained model
+- `POST /api/pretrained-models/` - Build new pretrained model or attach existing to project
+- `PUT /api/pretrained-models/<id>/` - Update pretrained model
+- `DELETE /api/pretrained-models/<id>/` - Delete pretrained model
+
+### PreTrained Model Inference
+- `POST /api/inference/` - Run inference with a pretrained model (multipart/form-data: `project_id`, `pretrained_model_id`, `image`)
+
+### PreTrained Detection Models (YOLO) (Full CRUD)
+- `GET /api/pretrained-detection-models/` - List all pretrained detection models
+- `GET /api/pretrained-detection-models/<id>/` - Get single pretrained detection model
+- `POST /api/pretrained-detection-models/` - Download YOLO model and upload to S3, or attach existing to project
+- `PUT /api/pretrained-detection-models/<id>/` - Update pretrained detection model
+- `DELETE /api/pretrained-detection-models/<id>/` - Delete pretrained detection model
+
+### PreTrained Detection Model Inference
+- `POST /api/pretrained-detection-models/inference/` - Run inference with a YOLO model (multipart/form-data: `pretrained_detection_model_id`, `image`, optional `confidence`). Returns a ZIP file containing `results.json`, annotated image, and mask PNGs (segmentation only). Task is auto-detected from the model.
+
+### Images (Full CRUD)
+- `GET /api/images/` - List all images
+- `GET /api/images/<id>/` - Get single image
+- `POST /api/images/` - Upload image to S3 (multipart/form-data: `user_id`, `project_id`, `file`, optional `tags`)
+- `PUT /api/images/<id>/` - Update image metadata
+- `DELETE /api/images/<id>/` - Delete image
 
 ### S3 Storage
 - `POST /s3/` - Upload file to S3
@@ -242,10 +284,13 @@ s3_client = boto3.client(
 
 ## Models
 
-- **User**: name, email, password_hash, project_ids, created_at, is_active
-- **Project**: name, description, tags, date_created, date_updated
-- **Tag**: numeric_id, name
-- **Image**: S3 file metadata with project and tag references
+- **User**: name, email, password_hash, project_ids, projects, created_at, is_active
+- **Project**: name, description, tags, trained_models, pretrained_models, pretrained_detection_models, user, date_created, date_updated
+- **Tag**: name, project
+- **TrainedModel**: name, description, project, architecture, include_top, custom_top_layers, custom_architecture, tags, epochs, batch_size, img_size, learning_rate, loss, metrics, current_version, versions, date_created, date_updated
+- **PreTrainedModel**: name, description, path, format, size, enabled, date_created, date_updated
+- **PreTrainedDetectionModel**: name, description, path, format, size, architecture, task, dataset, enabled, date_created, date_updated
+- **Image**: path, bucket_name, key, size, format, content_type, etag, last_modified, project, tag_references
 
 ## Troubleshooting
 
@@ -395,3 +440,116 @@ curl -X POST http://localhost:8000/api/pretrained-models/ \
 - The `dataset` field defaults to `"imagenet"`. Only `"imagenet"` weights are officially supported by Keras; any other value will initialize the model with random weights.
 - Architecture names are matched **case-insensitively** with hyphens and underscores ignored, so `"vgg19"`, `"VGG19"`, and `"VGG-19"` all work.
 - When `attach_existing` is `true`, TensorFlow is **not** loaded — the request is fast and lightweight.
+
+## PreTrained Detection Models (YOLO)
+
+When calling `POST /api/pretrained-detection-models/`, the `model` field accepts any of the following YOLO model names (case-insensitive, `.pt` extension optional):
+
+### Detection — COCO
+
+| Family | Models |
+|---|---|
+| YOLOv3 | `yolov3u`, `yolov3-sppu`, `yolov3-tinyu` |
+| YOLOv5 | `yolov5nu`, `yolov5su`, `yolov5mu`, `yolov5lu`, `yolov5xu` |
+| YOLOv5-P6 | `yolov5n6u`, `yolov5s6u`, `yolov5m6u`, `yolov5l6u`, `yolov5x6u` |
+| YOLOv8 | `yolov8n`, `yolov8s`, `yolov8m`, `yolov8l`, `yolov8x` |
+| YOLOv9 | `yolov9t`, `yolov9s`, `yolov9m`, `yolov9c`, `yolov9e` |
+| YOLOv10 | `yolov10n`, `yolov10s`, `yolov10m`, `yolov10b`, `yolov10l`, `yolov10x` |
+| YOLO11 | `yolo11n`, `yolo11s`, `yolo11m`, `yolo11l`, `yolo11x` |
+| YOLO12 | `yolo12n`, `yolo12s`, `yolo12m`, `yolo12l`, `yolo12x` |
+| YOLO26 | `yolo26n`, `yolo26s`, `yolo26m`, `yolo26l`, `yolo26x` |
+| RT-DETR | `rtdetr-l`, `rtdetr-x` |
+
+### Detection — Open Images V7
+
+| Models |
+|---|
+| `yolov8n-oiv7`, `yolov8s-oiv7`, `yolov8m-oiv7`, `yolov8l-oiv7`, `yolov8x-oiv7` |
+
+### Detection — Open Vocabulary (World)
+
+| Family | Models |
+|---|---|
+| World v1 | `yolov8s-world`, `yolov8m-world`, `yolov8l-world`, `yolov8x-world` |
+| World v2 | `yolov8s-worldv2`, `yolov8m-worldv2`, `yolov8l-worldv2`, `yolov8x-worldv2` |
+
+### Segmentation — COCO
+
+| Family | Models |
+|---|---|
+| YOLOv8 | `yolov8n-seg`, `yolov8s-seg`, `yolov8m-seg`, `yolov8l-seg`, `yolov8x-seg` |
+| YOLOv9 | `yolov9c-seg`, `yolov9e-seg` |
+| YOLO11 | `yolo11n-seg`, `yolo11s-seg`, `yolo11m-seg`, `yolo11l-seg`, `yolo11x-seg` |
+| YOLO26 | `yolo26n-seg`, `yolo26s-seg`, `yolo26m-seg`, `yolo26l-seg`, `yolo26x-seg` |
+
+### Classification — ImageNet
+
+| Family | Models |
+|---|---|
+| YOLOv8 | `yolov8n-cls`, `yolov8s-cls`, `yolov8m-cls`, `yolov8l-cls`, `yolov8x-cls` |
+| YOLO11 | `yolo11n-cls`, `yolo11s-cls`, `yolo11m-cls`, `yolo11l-cls`, `yolo11x-cls` |
+| YOLO26 | `yolo26n-cls`, `yolo26s-cls`, `yolo26m-cls`, `yolo26l-cls`, `yolo26x-cls` |
+
+### Pose Estimation — COCO
+
+| Family | Models |
+|---|---|
+| YOLOv8 | `yolov8n-pose`, `yolov8s-pose`, `yolov8m-pose`, `yolov8l-pose`, `yolov8x-pose` |
+| YOLO11 | `yolo11n-pose`, `yolo11s-pose`, `yolo11m-pose`, `yolo11l-pose`, `yolo11x-pose` |
+| YOLO26 | `yolo26n-pose`, `yolo26s-pose`, `yolo26m-pose`, `yolo26l-pose`, `yolo26x-pose` |
+
+### Oriented Bounding Boxes (OBB) — DOTAv1
+
+| Family | Models |
+|---|---|
+| YOLOv8 | `yolov8n-obb`, `yolov8s-obb`, `yolov8m-obb`, `yolov8l-obb`, `yolov8x-obb` |
+| YOLO11 | `yolo11n-obb`, `yolo11s-obb`, `yolo11m-obb`, `yolo11l-obb`, `yolo11x-obb` |
+| YOLO26 | `yolo26n-obb`, `yolo26s-obb`, `yolo26m-obb`, `yolo26l-obb`, `yolo26x-obb` |
+
+### Segment Anything (SAM)
+
+| Family | Models |
+|---|---|
+| SAM | `sam_b`, `sam_l` |
+| SAM 2 | `sam2_t`, `sam2_s`, `sam2_b`, `sam2_l` |
+| SAM 2.1 | `sam2.1_t`, `sam2.1_s`, `sam2.1_b`, `sam2.1_l` |
+| FastSAM | `FastSAM-s`, `FastSAM-x`, `mobile_sam` |
+
+### YOLO-NAS
+
+| Models |
+|---|
+| `yolo_nas_s`, `yolo_nas_m`, `yolo_nas_l` |
+
+### Example request — download and upload a YOLO model
+
+```bash
+curl -X POST http://localhost:8000/api/pretrained-detection-models/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "yolov8n",
+    "dataset": "coco",
+    "project_id": "<optional-project-id>",
+    "description": "YOLOv8 Nano detection model"
+  }'
+```
+
+### Example request — attach an existing YOLO model to a project
+
+```bash
+curl -X POST http://localhost:8000/api/pretrained-detection-models/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "yolov8n",
+    "dataset": "coco",
+    "attach_existing": true,
+    "project_id": "<project-id>"
+  }'
+```
+
+### Notes
+- Model names are matched **case-insensitively**; the `.pt` extension is optional.
+- The `dataset` field is **optional**. If omitted, the default dataset for the model is used (e.g. `coco` for detection models, `imagenet` for `-cls` models). If provided, the model+dataset combination is validated and returns `400` if invalid.
+- The task (detect, segment, classify, pose, obb) is inferred automatically from the model name suffix.
+- If the model has already been downloaded and uploaded to S3, a subsequent POST will skip the download and just attach it to the project (if `project_id` is provided).
+- When `attach_existing` is `true`, Ultralytics is **not** loaded — the request is fast and lightweight.

@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import HomeView, InferenceView, AuthView, UserView, ProjectView, TagView, LoginPageView, TrainedModelView, PreTrainedModelView
+from .views import HomeView, InferenceView, AuthView, UserView, ProjectView, TagView, LoginPageView, TrainedModelView, TrainModelView, TrainedModelInferenceView, PreTrainedModelView, PreTrainedDetectionModelView, PreTrainedDetectionModelInferenceView, ImageView
 
 urlpatterns = [
     path('', HomeView.as_view(), name='home'),
@@ -23,9 +23,20 @@ urlpatterns = [
 
     # TrainedModel CRUD endpoints
     path('api/trained-models/', TrainedModelView.as_view(), name='trained-model-list-create'),
+    path('api/trained-models/train/', TrainModelView.as_view(), name='trained-model-train'),
+    path('api/trained-models/inference/', TrainedModelInferenceView.as_view(), name='trained-model-inference'),
     path('api/trained-models/<str:model_id>/', TrainedModelView.as_view(), name='trained-model-detail'),
 
     # PreTrainedModel CRUD endpoints
     path('api/pretrained-models/', PreTrainedModelView.as_view(), name='pretrained-model-list-create'),
     path('api/pretrained-models/<str:model_id>/', PreTrainedModelView.as_view(), name='pretrained-model-detail'),
+
+    # PreTrainedDetectionModel CRUD endpoints
+    path('api/pretrained-detection-models/', PreTrainedDetectionModelView.as_view(), name='pretrained-detection-model-list-create'),
+    path('api/pretrained-detection-models/inference/', PreTrainedDetectionModelInferenceView.as_view(), name='pretrained-detection-model-inference'),
+    path('api/pretrained-detection-models/<str:model_id>/', PreTrainedDetectionModelView.as_view(), name='pretrained-detection-model-detail'),
+
+    # Image CRUD endpoints
+    path('api/images/', ImageView.as_view(), name='image-list-create'),
+    path('api/images/<str:image_id>/', ImageView.as_view(), name='image-detail'),
 ]
