@@ -1,4 +1,6 @@
 import os
+import zipfile
+import io
 
 # Must be set before TensorFlow is imported anywhere (suppresses GPU/TRT library warnings on CPU-only machines)
 #os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '3')
@@ -16,7 +18,7 @@ from .models import User, Project, Image, Tag, TagReference, TrainedModel, Train
 import json
 from bson import ObjectId
 from functools import wraps
-
+from ultralytics import YOLO
 
 def resolve_tag_references(tags_data,project = None):
     """
@@ -595,6 +597,11 @@ class TagView(View):
             tag = Tag(name=name, project=project)
             tag.save()
 
+            # Add tag reference to the project's tags list
+            if project:
+                project.tags.append(TagReference(tag_id=tag, name=tag.name))
+                project.save()
+
             return JsonResponse({
                 'status': 'success',
                 'message': 'Tag created',
@@ -1098,25 +1105,6 @@ class PreTrainedDetectionModelView(View):
                 project = Project.objects(id=project_id).first()
                 if not project:
                     return JsonResponse({'status': 'error', 'message': 'Project not found'}, status=404)
-
-            # MODE A: attach existing
-            if data.get('attach_existing'):
-                existing = PreTrainedDetectionModel.objects(name=matched).first()
-                if not existing:
-                    return JsonResponse({'status': 'error', 'message': f'PreTrainedDetectionModel "{matched}" not found. Build it first without attach_existing.'}, status=404)
-                if not project:
-                    return JsonResponse({'status': 'error', 'message': 'project_id is required for attach_existing'}, status=400)
-                already = any(str(ref.name) == matched for ref in project.pretrained_detection_models)
-                if already:
-                    return JsonResponse({'status': 'error', 'message': f'"{matched}" is already attached to project "{project.name}"'}, status=400)
-                project.pretrained_detection_models.append(
-                    PreTrainedDetectionModelReference(model_id=existing, name=existing.name, description=existing.description or '')
-                )
-                project.save()
-                resp = self._serialize(existing)
-                resp['project_id'] = str(project.id)
-                return JsonResponse({'status': 'success', 'message': f'"{matched}" attached to project "{project.name}"', 'pretrained_detection_model': resp})
-
             # MODE B: check if already built
             existing = PreTrainedDetectionModel.objects(name=matched).first()
             if existing:
@@ -1135,7 +1123,6 @@ class PreTrainedDetectionModelView(View):
                 return JsonResponse({'status': 'success', 'message': f'"{matched}" already exists, attached to project', 'pretrained_detection_model': resp})
 
             # Download via ultralytics
-            from ultralytics import YOLO
             with tempfile.TemporaryDirectory() as tmpdir:
                 model_path = os.path.join(tmpdir, pt_filename)
                 yolo_model = YOLO(pt_filename)
@@ -1610,15 +1597,20 @@ class TrainedModelView(View):
                 if err:
                     return JsonResponse({'status': 'error', 'message': err}, status=400)
 
-            # Auto-set last Dense layer units to match number of tags if mismatched
+            # Auto-append output Dense layer if last Dense doesn't match num_classes
             num_classes = len(tag_refs)
             if num_classes:
                 for layer_list in (custom_top_layers, custom_architecture):
+                    if not layer_list:
+                        continue
+                    # Check if last Dense already has correct units
+                    last_dense_idx = None
                     for i in range(len(layer_list) - 1, -1, -1):
                         if layer_list[i].get('type') == 'Dense':
-                            if layer_list[i].get('units') != num_classes:
-                                layer_list[i]['units'] = num_classes
+                            last_dense_idx = i
                             break
+                    if last_dense_idx is None or layer_list[last_dense_idx].get('units') != num_classes:
+                        layer_list.append({'type': 'Dense', 'units': num_classes, 'activation': 'softmax'})
 
             model = TrainedModel(
                 name=name,
@@ -1809,6 +1801,8 @@ class TrainModelView(View):
             label_to_idx = {l: i for i, l in enumerate(unique_labels)}
             num_classes = len(trained_model.tags)
             labels = [label_to_idx[l] for l in label_strings]
+            # One-hot encode labels
+            labels_onehot = tf.keras.utils.to_categorical(labels, num_classes=num_classes).tolist()
 
             # --- Hyper-parameters ---
             epochs = trained_model.epochs
@@ -1816,29 +1810,73 @@ class TrainModelView(View):
             img_size = trained_model.img_size
             lr = trained_model.learning_rate
 
-            # --- Hybrid tf.data pipeline: stream from S3, cache to disk ---
+            # --- Download images from S3 to local disk ---
             s3_service = S3Service()
-
-            def load_image(index):
-                idx = index.numpy()
-                img_bytes = s3_service.download_file(bucket_names[idx], s3_keys[idx])
-                img = tf.image.decode_image(img_bytes, channels=3, expand_animations=False)
-                img = tf.image.resize(img, [img_size, img_size])
-                return tf.cast(img, tf.float32) / 255.0
-
-            indices = list(range(len(s3_keys)))
-            ds = tf.data.Dataset.from_tensor_slices((indices, labels))
-
-            ds = ds.map(
-                lambda i, l: (tf.py_function(load_image, [i], tf.float32), l),
-                num_parallel_calls=tf.data.AUTOTUNE,
-            )
-            # Set shape so Keras knows the tensor dimensions after py_function
-            ds = ds.map(lambda img, l: (tf.ensure_shape(img, [img_size, img_size, 3]), l))
-
             cache_dir = tempfile.mkdtemp(prefix='train_cache_')
-            ds = ds.cache(os.path.join(cache_dir, 'cache'))
-            ds = ds.shuffle(len(indices)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+            local_paths = []
+            for i in range(len(s3_keys)):
+                img_bytes = s3_service.download_file(bucket_names[i], s3_keys[i])
+                local_path = os.path.join(cache_dir, f'{i}.jpg')
+                with open(local_path, 'wb') as f:
+                    f.write(img_bytes)
+                local_paths.append(local_path)
+
+            # --- Stratified validation split (20% per class) ---
+            from collections import defaultdict
+            class_indices = defaultdict(list)
+            for i, l in enumerate(labels):
+                class_indices[l].append(i)
+            rng = np.random.default_rng(None)
+            train_indices = []
+            val_indices = []
+            for cls, idxs in class_indices.items():
+                idxs = rng.permutation(idxs).tolist()
+                val_size = max(1, int(len(idxs) * 0.2))
+                val_indices.extend(idxs[:val_size])
+                train_indices.extend(idxs[val_size:])
+
+            # Get the correct preprocessing function for the architecture
+            preprocess_fn = None
+            if hasattr(keras.applications, trained_model.architecture.lower()):
+                arch_module = getattr(keras.applications, trained_model.architecture.lower(), None)
+                if arch_module and hasattr(arch_module, 'preprocess_input'):
+                    preprocess_fn = arch_module.preprocess_input
+            if preprocess_fn is None:
+                # Try common module names
+                arch_modules = {
+                    'MobileNetV2': keras.applications.mobilenet_v2,
+                    'EfficientNetB0': keras.applications.efficientnet,
+                    'EfficientNetB1': keras.applications.efficientnet,
+                    'EfficientNetB2': keras.applications.efficientnet,
+                    'ResNet50': keras.applications.resnet,
+                    'VGG19': keras.applications.vgg19,
+                    'InceptionV3': keras.applications.inception_v3,
+                }
+                module = arch_modules.get(trained_model.architecture)
+                if module:
+                    preprocess_fn = module.preprocess_input
+
+            def load_local_image(path, label):
+                img = tf.io.read_file(path)
+                img = tf.image.decode_image(img, channels=3, expand_animations=False)
+                img = tf.image.resize(img, [img_size, img_size])
+                img = tf.cast(img, tf.float32)
+                if preprocess_fn is not None:
+                    img = preprocess_fn(img)
+                else:
+                    img = img / 255.0
+                img = tf.ensure_shape(img, [img_size, img_size, 3])
+                return img, label
+
+            def make_dataset(idx_list):
+                paths = [local_paths[i] for i in idx_list]
+                lbls = [labels_onehot[i] for i in idx_list]
+                ds = tf.data.Dataset.from_tensor_slices((paths, lbls))
+                ds = ds.map(load_local_image, num_parallel_calls=tf.data.AUTOTUNE)
+                return ds
+
+            train_ds = make_dataset(train_indices).shuffle(len(train_indices)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+            val_ds = make_dataset(val_indices).batch(batch_size).prefetch(tf.data.AUTOTUNE)
 
             # --- Build Keras model ---
             input_shape = (img_size, img_size, 3)
@@ -1892,11 +1930,18 @@ class TrainModelView(View):
                 metrics=trained_model.metrics or ['accuracy'],
             )
 
+            # --- Compute class weights to handle imbalance ---
+            from collections import Counter
+            train_labels = [labels[i] for i in train_indices]
+            label_counts = Counter(train_labels)
+            total_train = len(train_labels)
+            class_weight = {cls: total_train / (num_classes * count) for cls, count in label_counts.items()}
+
             # --- Train ---
             early_stop = keras.callbacks.EarlyStopping(
-                monitor='loss', patience=3, restore_best_weights=True
+                monitor='val_loss', patience=5, restore_best_weights=True
             )
-            history = keras_model.fit(ds, epochs=epochs, callbacks=[early_stop])
+            history = keras_model.fit(train_ds, validation_data=val_ds, epochs=epochs, callbacks=[early_stop], class_weight=class_weight)
 
             # --- Save weights and upload to S3 ---
             with tempfile.NamedTemporaryFile(suffix='.weights.h5', delete=False) as tmp:
@@ -1950,6 +1995,9 @@ class TrainModelView(View):
                 },
             }, status=200)
         except Exception as e:
+            if 'cache_dir' in locals():
+                import shutil
+                shutil.rmtree(cache_dir, ignore_errors=True)
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
@@ -2177,11 +2225,30 @@ class TrainedModelInferenceView(View):
             finally:
                 os.unlink(tmp_path)
 
-            # Preprocess image
+            # Preprocess image using architecture-specific preprocessing
             img = PILImage.open(BytesIO(image_file.read())).convert('RGB')
             img = img.resize((img_size, img_size))
-            img_array = np.array(img, dtype='float32') / 255.0
+            img_array = np.array(img, dtype='float32')
             img_array = np.expand_dims(img_array, axis=0)
+
+            # Apply same preprocessing as training
+            preprocess_fn = None
+            arch_modules = {
+                'MobileNetV2': tf.keras.applications.mobilenet_v2,
+                'EfficientNetB0': tf.keras.applications.efficientnet,
+                'EfficientNetB1': tf.keras.applications.efficientnet,
+                'EfficientNetB2': tf.keras.applications.efficientnet,
+                'ResNet50': tf.keras.applications.resnet,
+                'VGG19': tf.keras.applications.vgg19,
+                'InceptionV3': tf.keras.applications.inception_v3,
+            }
+            module = arch_modules.get(arch)
+            if module:
+                preprocess_fn = module.preprocess_input
+            if preprocess_fn:
+                img_array = preprocess_fn(img_array)
+            else:
+                img_array = img_array / 255.0
 
             # Run inference
             predictions = keras_model.predict(img_array)
@@ -2240,7 +2307,7 @@ class ImageView(View):
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
-    # POST - Upload image to S3 and create Image document
+    # POST - Upload image(s) to S3 and create Image document(s). Accepts a single image or a zip file.
     def post(self, request):
         try:
             user_id = request.POST.get('user_id')
@@ -2268,9 +2335,55 @@ class ImageView(View):
             if tags_data:
                 tag_refs = resolve_tag_references(json.loads(tags_data), project)
 
-            # Upload to S3: images/<user_id>/<project_id>/<filename>
             s3_service = S3Service()
             s3_service.create_bucket(self.BUCKET_NAME)
+
+            IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.webp')
+
+            # Check if the uploaded file is a zip
+            if file.name.lower().endswith('.zip'):
+                file_bytes = file.read()
+                if not zipfile.is_zipfile(io.BytesIO(file_bytes)):
+                    return JsonResponse({'status': 'error', 'message': 'Invalid zip file'}, status=400)
+
+                images = []
+                with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
+                    for entry in zf.namelist():
+                        # Skip directories and non-image files
+                        if entry.endswith('/') or not entry.lower().endswith(IMAGE_EXTENSIONS):
+                            continue
+                        filename = os.path.basename(entry)
+                        if not filename:
+                            continue
+                        img_data = zf.read(entry)
+                        s3_key = f'{user_id}/{project_id}/{filename}'
+                        metadata = s3_service.upload_file(self.BUCKET_NAME, s3_key, img_data)
+
+                        img = Image(
+                            path=metadata['path'],
+                            bucket_name=self.BUCKET_NAME,
+                            key=s3_key,
+                            size=metadata.get('size'),
+                            format=filename.rsplit('.', 1)[-1] if '.' in filename else None,
+                            content_type=metadata.get('content_type'),
+                            etag=metadata.get('etag'),
+                            last_modified=metadata.get('last_modified'),
+                            project=project,
+                            tag_references=tag_refs,
+                        )
+                        img.save()
+                        images.append(img)
+
+                if not images:
+                    return JsonResponse({'status': 'error', 'message': 'No valid images found in zip file'}, status=400)
+
+                return JsonResponse({
+                    'status': 'success',
+                    'message': f'{len(images)} images uploaded and created',
+                    'images': [self._serialize(img) for img in images],
+                }, status=201)
+
+            # Single image upload
             s3_key = f'{user_id}/{project_id}/{file.name}'
             metadata = s3_service.upload_file(self.BUCKET_NAME, s3_key, file.read())
 

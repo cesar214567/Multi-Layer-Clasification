@@ -39,7 +39,7 @@ docker-compose up -d
 
 3. **Run Django server (accessible externally):**
 ```bash
-python3 manage.py runserver 0.0.0.0:8000
+python3.10 manage.py runserver 0.0.0.0:8000
 ```
 
 **Important:** Use `0.0.0.0:8000` to make the server accessible from external sources, not just `localhost:8000`.
