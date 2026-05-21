@@ -798,12 +798,12 @@ collection:
                 send: true
                 store: true
               rebuildPath: true
-          - url: "{{base_url}}/api/trained-models/{{model_id}}/"
+          - url: "{{base_url}}/api/trained-models/6a0cde9e4b8cd39ec5d22a27/"
             name: Get Single Trained Model
             meta:
               id: req_c3896d450248466e8fa6e434a7033cf3
               created: 1772736061058
-              modified: 1772736061058
+              modified: 1779234434029
               isPrivate: false
               description: Get details of a specific trained model by ID (includes version
                 history)
@@ -1255,7 +1255,7 @@ collection:
             meta:
               id: req_a414cb2792e94f5bb57f9f1e02439b57
               created: 1773780400000
-              modified: 1778905389202
+              modified: 1779296203449
               isPrivate: false
               description: "Train a model that uses a known Keras architecture with
                 include_top=false and custom replacement top layers. The base
@@ -1271,8 +1271,8 @@ collection:
               mimeType: text/plain
               text: >-
                 {
-                  "trained_model_id": "6a07f11284f48a0270a82f17",
-                  "project_id": "69b450d70ae216e44b802ff2",
+                  "trained_model_id": "6a0de5bea78d5efc10eec0c3",
+                  "project_id": "6a0b5feabfa686dd86bc58e6",
                   "version_notes": "Training with frozen base + custom head for cat classification version 1"
                 }
             headers:

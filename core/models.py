@@ -4,6 +4,7 @@ import datetime
 class Tag(Document):
     name = StringField(max_length=100, required=True)
     project = ReferenceField('Project')
+    enabled = BooleanField(default=True)
 
     meta = {'collection': 'tags'}
 
@@ -62,6 +63,8 @@ class TrainedModel(Document):
     learning_rate = FloatField()
     loss = StringField(default='sparse_categorical_crossentropy')
     metrics = ListField(StringField(), default=lambda: ['accuracy'])
+    early_stopping_patience = IntField(default=3)
+    early_stopping_min_delta = FloatField(default=0.001)
     # Versioning
     current_version = IntField(default=1)
     versions = ListField(EmbeddedDocumentField(ModelVersion))
@@ -164,6 +167,7 @@ class Project(Document):
     meta = {'collection': 'projects'}
 
 class Image(Document):
+    name = StringField()
     path = StringField(required=True)
     bucket_name = StringField(required=True)
     key = StringField(required=True)

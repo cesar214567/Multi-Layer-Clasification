@@ -59,9 +59,11 @@ def serialize_tag_references(tag_refs):
     result = []
     for tr in tag_refs:
         try:
-            result.append({'tag_id': str(tr.tag_id.id), 'name': tr.name})
+            tag = tr.tag_id
+            enabled = getattr(tag, 'enabled', None)
+            result.append({'id': str(tag.id), 'name': tr.name, 'enabled': enabled if enabled is not None else True})
         except Exception:
-            result.append({'tag_id': None, 'name': tr.name})
+            result.append({'id': None, 'name': tr.name, 'enabled': True})
     return result
 
 
@@ -428,7 +430,13 @@ class ProjectView(View):
                     return JsonResponse({'status': 'error', 'message': 'Project not found'}, status=404)
                 return JsonResponse({'status': 'success', 'project': serialize_project(project)})
             else:
-                projects = Project.objects.all()
+                user_id = request.headers.get('X-User-Id')
+                if not user_id:
+                    return JsonResponse({'status': 'error', 'message': 'X-User-Id header is required'}, status=400)
+                user = User.objects(id=user_id).first()
+                if not user:
+                    return JsonResponse({'status': 'error', 'message': 'User not found'}, status=404)
+                projects = Project.objects(user=user)
                 project_list = [serialize_project(p) for p in projects]
                 return JsonResponse({'status': 'success', 'projects': project_list, 'count': len(project_list)})
         except Exception as e:
@@ -498,7 +506,27 @@ class ProjectView(View):
             if 'description' in data:
                 project.description = data['description']
             if 'tags' in data:
-                project.tags = resolve_tag_references(data['tags'],project)
+                # Check if any existing tags are being removed
+                new_tag_names = {item.get('name') for item in data['tags'] if item.get('name')}
+                existing_tags = project.tags or []
+                tags_to_delete = []
+                for existing_tag_ref in existing_tags:
+                    if existing_tag_ref.name not in new_tag_names:
+                        # This tag is being removed — check if any images use it
+                        images_with_tag = Image.objects(
+                            project=project,
+                            tag_references__tag_id=existing_tag_ref.tag_id
+                        )
+                        if images_with_tag.count() > 0:
+                            return JsonResponse({
+                                'status': 'error',
+                                'message': f'Cannot remove tag "{existing_tag_ref.name}" because it has {images_with_tag.count()} image(s) associated with it. Remove the images first.'
+                            }, status=400)
+                        tags_to_delete.append(existing_tag_ref.tag_id)
+                # Delete orphaned tags from DB
+                for tag in tags_to_delete:
+                    tag.delete()
+                project.tags = resolve_tag_references(data['tags'], project)
             if 'trained_models' in data:
                 project.trained_models = resolve_trained_model_references(data['trained_models'])
             if 'pretrained_models' in data:
@@ -558,6 +586,7 @@ class TagView(View):
                         'id': str(tag.id),
                         'name': tag.name,
                         'project_id': str(tag.project.id) if tag.project else None,
+                        'enabled': tag.enabled if tag.enabled is not None else True,
                     }
                 })
             else:
@@ -567,6 +596,7 @@ class TagView(View):
                     'id': str(tag.id),
                     'name': tag.name,
                     'project_id': str(tag.project.id) if tag.project else None,
+                    'enabled': tag.enabled if tag.enabled is not None else True,
                 } for tag in tags]
 
                 return JsonResponse({'status': 'success', 'tags': tag_list, 'count': len(tag_list)})
@@ -630,6 +660,9 @@ class TagView(View):
                     return JsonResponse({'status': 'error', 'message': 'Tag with this name already exists'}, status=400)
                 tag.name = data['name']
 
+            if 'enabled' in data:
+                tag.enabled = data['enabled']
+
             if 'project_id' in data:
                 if data['project_id']:
                     project = Project.objects(id=data['project_id']).first()
@@ -641,6 +674,14 @@ class TagView(View):
 
             tag.save()
 
+            # Sync the TagReference in the project
+            if tag.project:
+                for tr in tag.project.tags:
+                    if tr.tag_id and tr.tag_id.id == tag.id:
+                        tr.name = tag.name
+                        break
+                tag.project.save()
+
             return JsonResponse({
                 'status': 'success',
                 'message': 'Tag updated',
@@ -648,6 +689,7 @@ class TagView(View):
                     'id': str(tag.id),
                     'name': tag.name,
                     'project_id': str(tag.project.id) if tag.project else None,
+                    'enabled': tag.enabled if tag.enabled is not None else True,
                 }
             })
         except Exception as e:
@@ -1125,7 +1167,18 @@ class PreTrainedDetectionModelView(View):
             # Download via ultralytics
             with tempfile.TemporaryDirectory() as tmpdir:
                 model_path = os.path.join(tmpdir, pt_filename)
-                yolo_model = YOLO(pt_filename)
+                if 'yolo_nas' not in pt_filename:
+                    if 'sam' in pt_filename.lower() or 'FastSAM' in pt_filename:
+                        from ultralytics import SAM
+                        yolo_model = SAM(pt_filename)
+                    else:
+                        yolo_model = YOLO(pt_filename)
+                else:
+                    try:
+                        from ultralytics import NAS
+                        yolo_model = NAS(pt_filename.replace('.pt', ''))
+                    except Exception as nas_err:
+                        return JsonResponse({'status': 'error', 'message': f'Failed to download YOLO-NAS model. The Deci AI servers (sghub.deci.ai) may be unreachable from this environment. Error: {nas_err}'}, status=503)
                 # ultralytics downloads to cwd; move if needed
                 if os.path.exists(pt_filename) and not os.path.exists(model_path):
                     os.rename(pt_filename, model_path)
@@ -1266,12 +1319,27 @@ class PreTrainedDetectionModelInferenceView(View):
             from ultralytics import YOLO
             from PIL import Image as PILImage
 
-            with tempfile.NamedTemporaryFile(suffix='.pt', delete=False) as tmp:
+            # Use model name as filename for SAM compatibility
+            tmp_suffix = f'_{detection_model.name}.pt' if 'sam' in (detection_model.name or '').lower() else '.pt'
+            with tempfile.NamedTemporaryFile(suffix=tmp_suffix, prefix='', delete=False) as tmp:
                 tmp.write(weights_bytes)
                 tmp_path = tmp.name
+            # SAM requires exact filename match — rename if needed
+            if 'sam' in (detection_model.name or '').lower():
+                import shutil
+                sam_path = os.path.join(os.path.dirname(tmp_path), f'{detection_model.name}.pt')
+                shutil.move(tmp_path, sam_path)
+                tmp_path = sam_path
 
             try:
-                yolo_model = YOLO(tmp_path)
+                if 'yolo_nas' in (detection_model.name or '').lower() or 'yolo_nas' in (detection_model.architecture or '').lower():
+                    from ultralytics import NAS
+                    yolo_model = NAS(tmp_path)
+                elif 'sam' in (detection_model.name or '').lower():
+                    from ultralytics import SAM
+                    yolo_model = SAM(tmp_path)
+                else:
+                    yolo_model = YOLO(tmp_path)
 
                 # ── 4. Save uploaded image to a temp file ────────────────────
                 img_name = image_file.name or 'image.jpg'
@@ -1465,10 +1533,10 @@ class PreTrainedDetectionModelInferenceView(View):
                 return response
 
             finally:
-                for p in [tmp_path, img_tmp_path]:
+                for p in [tmp_path, locals().get('img_tmp_path', '')]:
                     try:
                         os.unlink(p)
-                    except OSError:
+                    except (OSError, TypeError):
                         pass
 
         except Exception as e:
@@ -1515,6 +1583,8 @@ def _serialize_trained_model(m):
         'learning_rate': m.learning_rate,
         'loss': m.loss,
         'metrics': m.metrics or [],
+        'early_stopping_patience': m.early_stopping_patience or 3,
+        'early_stopping_min_delta': m.early_stopping_min_delta or 0.001,
         'current_version': m.current_version,
         'versions': [{
             'version': v.version,
@@ -1551,7 +1621,12 @@ class TrainedModelView(View):
                     return JsonResponse({'status': 'error', 'message': 'TrainedModel not found'}, status=404)
                 return JsonResponse({'status': 'success', 'trained_model': _serialize_trained_model(model)})
             else:
-                models = TrainedModel.objects.all()
+                project_id = request.GET.get('project_id')
+                if project_id:
+                    project = Project.objects(id=project_id).first()
+                    models = TrainedModel.objects(project=project) if project else []
+                else:
+                    models = []
                 model_list = [_serialize_trained_model(m) for m in models]
                 return JsonResponse({'status': 'success', 'trained_models': model_list, 'count': len(model_list)})
         except Exception as e:
@@ -1627,6 +1702,8 @@ class TrainedModelView(View):
                 learning_rate=data.get('learning_rate', 1e-3),
                 loss=data.get('loss', 'sparse_categorical_crossentropy'),
                 metrics=data.get('metrics', ['accuracy']),
+                early_stopping_patience=data.get('early_stopping_patience', 3),
+                early_stopping_min_delta=data.get('early_stopping_min_delta', 0.001),
                 current_version=0,
             )
             model.save()
@@ -1693,6 +1770,10 @@ class TrainedModelView(View):
                 model.loss = data['loss']
             if 'metrics' in data:
                 model.metrics = data['metrics']
+            if 'early_stopping_patience' in data:
+                model.early_stopping_patience = data['early_stopping_patience']
+            if 'early_stopping_min_delta' in data:
+                model.early_stopping_min_delta = data['early_stopping_min_delta']
 
             # Resolve tags against project if provided
             tag_refs = None
@@ -1710,8 +1791,6 @@ class TrainedModelView(View):
                 model.tags = tag_refs
 
             # Bump version
-            model.current_version = (model.current_version or 0) + 1
-            model.create_version(notes=data.get('version_notes'), tags=tag_refs if tag_refs is not None else list(model.tags or []))
             model.save()
 
             return JsonResponse({
@@ -1875,9 +1954,6 @@ class TrainModelView(View):
                 ds = ds.map(load_local_image, num_parallel_calls=tf.data.AUTOTUNE)
                 return ds
 
-            train_ds = make_dataset(train_indices).shuffle(len(train_indices)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
-            val_ds = make_dataset(val_indices).batch(batch_size).prefetch(tf.data.AUTOTUNE)
-
             # --- Build Keras model ---
             input_shape = (img_size, img_size, 3)
 
@@ -1924,24 +2000,28 @@ class TrainModelView(View):
                         layers.append(keras.layers.Dense(num_classes, activation='softmax'))
                     keras_model = keras.Sequential(layers)
 
+            # Resolve metric strings to proper Keras objects where needed
+            resolved_metrics = []
+            for m in (trained_model.metrics or ['accuracy']):
+                if m == 'f1_score':
+                    resolved_metrics.append(keras.metrics.F1Score(average='macro', name='f1_score'))
+                else:
+                    resolved_metrics.append(m)
+
             keras_model.compile(
                 optimizer=keras.optimizers.Adam(learning_rate=lr),
-                loss=trained_model.loss or 'sparse_categorical_crossentropy',
-                metrics=trained_model.metrics or ['accuracy'],
+                loss=trained_model.loss or 'categorical_crossentropy',
+                metrics=resolved_metrics,
             )
 
-            # --- Compute class weights to handle imbalance ---
-            from collections import Counter
-            train_labels = [labels[i] for i in train_indices]
-            label_counts = Counter(train_labels)
-            total_train = len(train_labels)
-            class_weight = {cls: total_train / (num_classes * count) for cls, count in label_counts.items()}
+            train_ds = make_dataset(train_indices).shuffle(len(train_indices)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+            val_ds = make_dataset(val_indices).batch(batch_size).prefetch(tf.data.AUTOTUNE)
 
             # --- Train ---
             early_stop = keras.callbacks.EarlyStopping(
-                monitor='val_loss', patience=5, restore_best_weights=True
+                monitor='val_loss', patience=trained_model.early_stopping_patience or 3, min_delta=trained_model.early_stopping_min_delta or 0.001, restore_best_weights=True
             )
-            history = keras_model.fit(train_ds, validation_data=val_ds, epochs=epochs, callbacks=[early_stop], class_weight=class_weight)
+            history = keras_model.fit(train_ds, validation_data=val_ds, epochs=epochs, callbacks=[early_stop])
 
             # --- Save weights and upload to S3 ---
             with tempfile.NamedTemporaryFile(suffix='.weights.h5', delete=False) as tmp:
@@ -2280,6 +2360,7 @@ class ImageView(View):
     def _serialize(self, img):
         return {
             'id': str(img.id),
+            'name': img.name,
             'path': img.path,
             'bucket_name': img.bucket_name,
             'key': img.key,
@@ -2301,9 +2382,36 @@ class ImageView(View):
                     return JsonResponse({'status': 'error', 'message': 'Image not found'}, status=404)
                 return JsonResponse({'status': 'success', 'image': self._serialize(img)})
             else:
-                images = Image.objects.all()
+                project_id = request.GET.get('project_id')
+                if not project_id:
+                    return JsonResponse({'status': 'success', 'images': [], 'count': 0, 'total': 0, 'page': 1, 'page_size': 20})
+
+                project = Project.objects(id=project_id).first()
+                if not project:
+                    return JsonResponse({'status': 'success', 'images': [], 'count': 0, 'total': 0, 'page': 1, 'page_size': 20})
+
+                images = Image.objects(project=project)
+
+                # Filter by tag
+                tag_id = request.GET.get('tag_id')
+                if tag_id:
+                    images = images.filter(tag_references__tag_id=tag_id)
+
+                # Filter by name
+                name = request.GET.get('name')
+                if name:
+                    images = images.filter(name__icontains=name)
+
+                total = images.count()
+
+                # Pagination
+                page = int(request.GET.get('page', 1))
+                page_size = int(request.GET.get('page_size', 20))
+                offset = (page - 1) * page_size
+                images = images.skip(offset).limit(page_size)
+
                 image_list = [self._serialize(img) for img in images]
-                return JsonResponse({'status': 'success', 'images': image_list, 'count': len(image_list)})
+                return JsonResponse({'status': 'success', 'images': image_list, 'count': len(image_list), 'total': total, 'page': page, 'page_size': page_size})
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
@@ -2360,6 +2468,7 @@ class ImageView(View):
                         metadata = s3_service.upload_file(self.BUCKET_NAME, s3_key, img_data)
 
                         img = Image(
+                            name=filename,
                             path=metadata['path'],
                             bucket_name=self.BUCKET_NAME,
                             key=s3_key,
@@ -2388,6 +2497,7 @@ class ImageView(View):
             metadata = s3_service.upload_file(self.BUCKET_NAME, s3_key, file.read())
 
             img = Image(
+                name=file.name,
                 path=metadata['path'],
                 bucket_name=self.BUCKET_NAME,
                 key=s3_key,
@@ -2441,5 +2551,58 @@ class ImageView(View):
 
             img.delete()
             return JsonResponse({'status': 'success', 'message': 'Image deleted'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ProjectDashboardView(View):
+    def get(self, request, project_id):
+        try:
+            project = Project.objects(id=project_id).first()
+            if not project:
+                return JsonResponse({'status': 'error', 'message': 'Project not found'}, status=404)
+
+            images = Image.objects(project=project)
+            total_images = images.count()
+
+            tags_summary = []
+            for tag_ref in (project.tags or []):
+                try:
+                    tag = tag_ref.tag_id
+                    count = Image.objects(project=project, tag_references__tag_id=tag).count()
+                    enabled = getattr(tag, 'enabled', None)
+                    tags_summary.append({'id': str(tag.id), 'name': tag_ref.name, 'image_count': count, 'enabled': enabled if enabled is not None else True})
+                except Exception:
+                    continue
+
+            trained_models_list = []
+            for m in (project.trained_models or []):
+                try:
+                    trained_models_list.append({'id': str(m.model_id.id), 'name': m.name, 'description': m.description})
+                except Exception:
+                    continue
+            pretrained_models_list = []
+            for m in (project.pretrained_models or []):
+                try:
+                    pretrained_models_list.append({'id': str(m.model_id.id), 'name': m.name, 'description': m.description})
+                except Exception:
+                    continue
+            detection_models_list = []
+            for m in (project.pretrained_detection_models or []):
+                try:
+                    detection_models_list.append({'id': str(m.model_id.id), 'name': m.name, 'description': m.description})
+                except Exception:
+                    continue
+
+            return JsonResponse({'status': 'success', 'dashboard': {
+                'project': {'id': str(project.id), 'name': project.name, 'description': project.description,
+                            'date_created': project.date_created.isoformat() if project.date_created else None},
+                'tags': tags_summary,
+                'trained_models': trained_models_list,
+                'pretrained_models': pretrained_models_list,
+                'detection_models': detection_models_list,
+                'total_images': total_images,
+            }})
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

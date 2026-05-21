@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import HomeView, InferenceView, AuthView, UserView, ProjectView, TagView, LoginPageView, TrainedModelView, TrainModelView, TrainedModelInferenceView, PreTrainedModelView, PreTrainedDetectionModelView, PreTrainedDetectionModelInferenceView, ImageView
+from .views import HomeView, InferenceView, AuthView, UserView, ProjectView, TagView, LoginPageView, TrainedModelView, TrainModelView, TrainedModelInferenceView, PreTrainedModelView, PreTrainedDetectionModelView, PreTrainedDetectionModelInferenceView, ImageView, ProjectDashboardView
 
 urlpatterns = [
     path('', HomeView.as_view(), name='home'),
@@ -15,6 +15,7 @@ urlpatterns = [
     
     # Project CRUD endpoints
     path('api/projects/', ProjectView.as_view(), name='project-list-create'),
+    path('api/projects/<str:project_id>/dashboard/', ProjectDashboardView.as_view(), name='project-dashboard'),
     path('api/projects/<str:project_id>/', ProjectView.as_view(), name='project-detail'),
     
     # Tag CRUD endpoints
