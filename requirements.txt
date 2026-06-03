@@ -5,3 +5,4 @@ mongoengine==0.29.1
 Pillow>=10.0
 ultralytics>=8.3
 tensorflow>=2.18,<2.19
+PyJWT==2.8.0

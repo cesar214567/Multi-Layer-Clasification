@@ -9,8 +9,9 @@ services:
     environment:
       - SERVICES=s3
       - DEBUG=1
+      - PERSISTENCE=1
     volumes:
-      - "./tmp/localstack:/var/lib/localstack"
+      - "localstack_data:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
 
   mongodb:
@@ -26,3 +27,4 @@ services:
 
 volumes:
   mongodb_data:
+  localstack_data:

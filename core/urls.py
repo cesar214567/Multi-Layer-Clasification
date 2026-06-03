@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import HomeView, InferenceView, AuthView, UserView, ProjectView, TagView, LoginPageView, TrainedModelView, TrainModelView, TrainedModelInferenceView, PreTrainedModelView, PreTrainedDetectionModelView, PreTrainedDetectionModelInferenceView, ImageView, ProjectDashboardView
+from .views import HomeView, InferenceView, AuthView, UserView, ProjectView, TagView, LoginPageView, TrainedModelView, TrainModelView, TrainedModelInferenceView, PreTrainedModelView, PreTrainedDetectionModelView, PreTrainedDetectionModelInferenceView, ImageView, ImageFileView, ProjectDashboardView
 
 urlpatterns = [
     path('', HomeView.as_view(), name='home'),
@@ -25,6 +25,7 @@ urlpatterns = [
     # TrainedModel CRUD endpoints
     path('api/trained-models/', TrainedModelView.as_view(), name='trained-model-list-create'),
     path('api/trained-models/train/', TrainModelView.as_view(), name='trained-model-train'),
+    path('api/trained-models/train/<str:job_id>/', TrainModelView.as_view(), name='trained-model-train-status'),
     path('api/trained-models/inference/', TrainedModelInferenceView.as_view(), name='trained-model-inference'),
     path('api/trained-models/<str:model_id>/', TrainedModelView.as_view(), name='trained-model-detail'),
 
@@ -40,4 +41,5 @@ urlpatterns = [
     # Image CRUD endpoints
     path('api/images/', ImageView.as_view(), name='image-list-create'),
     path('api/images/<str:image_id>/', ImageView.as_view(), name='image-detail'),
+    path('api/images/<str:image_id>/file/', ImageFileView.as_view(), name='image-file'),
 ]

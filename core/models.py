@@ -44,6 +44,7 @@ class ModelVersion(EmbeddedDocument):
     loss = StringField()
     metrics = ListField(StringField())
     notes = StringField()
+    ready = BooleanField(default=False)
     date_created = DateTimeField(default=datetime.datetime.now(datetime.timezone.utc))
 
 class TrainedModel(Document):
@@ -183,3 +184,20 @@ class Image(Document):
         return super().save(*args, **kwargs)
     
     meta = {'collection': 'images'}
+
+class EpochMetrics(EmbeddedDocument):
+    epoch = IntField()
+    metrics = DictField()
+
+class TrainingJob(Document):
+    trained_model = ReferenceField(TrainedModel, required=True)
+    project = ReferenceField('Project', required=True)
+    status = StringField(default='pending')  # pending, running, success, error
+    message = StringField()
+    metrics = DictField()
+    epoch_history = ListField(EmbeddedDocumentField(EpochMetrics))
+    pid = IntField()  # OS process ID of the training worker
+    created_at = DateTimeField(default=datetime.datetime.now(datetime.timezone.utc))
+    finished_at = DateTimeField()
+
+    meta = {'collection': 'training_jobs'}

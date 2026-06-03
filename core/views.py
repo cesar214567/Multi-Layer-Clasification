@@ -1,4 +1,6 @@
 import os
+import sys
+import uuid
 import zipfile
 import io
 
@@ -7,17 +9,29 @@ import io
 os.environ.setdefault('TF_ENABLE_ONEDNN_OPTS', '0')
 os.environ.setdefault('CUDA_VISIBLE_DEVICES', '')
 
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
 from django.views import View
 from django.shortcuts import render
 from django.contrib.auth.hashers import make_password, check_password
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from .services import S3Service
-from .models import User, Project, Image, Tag, TagReference, TrainedModel, TrainedModelReference, PreTrainedModel, PreTrainedModelReference, PreTrainedDetectionModel, PreTrainedDetectionModelReference, ProjectReference, ModelVersion
+from .models import User, Project, Image, Tag, TagReference, TrainedModel, TrainedModelReference, PreTrainedModel, PreTrainedModelReference, PreTrainedDetectionModel, PreTrainedDetectionModelReference, ProjectReference, ModelVersion, TrainingJob, EpochMetrics
+import threading
 import json
 from bson import ObjectId
 from functools import wraps
+import jwt
+import datetime
+from django.conf import settings
+
+def generate_token(user_id):
+    payload = {
+        'user_id': user_id,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7),
+        'iat': datetime.datetime.utcnow()
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
 from ultralytics import YOLO
 
 def resolve_tag_references(tags_data,project = None):
@@ -230,6 +244,7 @@ class AuthView(View):
                 return JsonResponse({
                     'status': 'success',
                     'message': 'User registered successfully',
+                    'token': generate_token(str(user.id)),
                     'user': {
                         'id': str(user.id),
                         'email': user.email,
@@ -270,6 +285,7 @@ class AuthView(View):
                 return JsonResponse({
                     'status': 'success',
                     'message': 'Login successful',
+                    'token': generate_token(str(user.id)),
                     'user': {
                         'id': str(user.id),
                         'email': user.email,
@@ -613,12 +629,12 @@ class TagView(View):
                 return JsonResponse({'status': 'error', 'message': 'name is required'}, status=400)
 
             project_id = data.get('project_id')
+            if not project_id:
+                return JsonResponse({'status': 'error', 'message': 'project_id is required'}, status=400)
 
-            project = None
-            if project_id:
-                project = Project.objects(id=project_id).first()
-                if not project:
-                    return JsonResponse({'status': 'error', 'message': 'Project not found'}, status=404)
+            project = Project.objects(id=project_id).first()
+            if not project:
+                return JsonResponse({'status': 'error', 'message': 'Project not found'}, status=404)
 
             # Check if tag with same name already exists within the same project scope
             if Tag.objects(name=name, project=project).first():
@@ -1603,6 +1619,7 @@ def _serialize_trained_model(m):
             'loss': v.loss,
             'metrics': v.metrics or [],
             'notes': v.notes,
+            'ready': v.ready if v.ready is not None else False,
             'date_created': v.date_created.isoformat() if v.date_created else None,
         } for v in (m.versions or [])],
         'date_created': m.date_created.isoformat() if m.date_created else None,
@@ -1819,26 +1836,75 @@ class TrainModelView(View):
     """
     POST /api/trained-models/train/
 
-    Builds a Keras model from the TrainedModel architecture config, loads training
-    images from S3 (project images, tags as labels) using a hybrid tf.data pipeline
-    with disk caching, trains the model, uploads weights to S3, and creates a new
-    version on the TrainedModel.
-
-    Required JSON fields:
-        - trained_model_id: existing TrainedModel id
-        - project_id: project whose images will be used for training
-    Optional:
-        - epochs (default 10), batch_size (default 32), image_size (default 224)
-        - learning_rate (default 1e-3)
-        - version_notes
+    Kicks off training in a background thread and returns immediately with a job ID.
+    Use GET /api/trained-models/train/<job_id>/ to check status.
     """
 
-    def post(self, request):
-        import tempfile
-        import tensorflow as tf
-        import tensorflow.keras as keras
-        import numpy as np
+    def get(self, request, job_id=None):
+        """GET /api/trained-models/train/<job_id>/ - Check training job status"""
+        if not job_id:
+            # List jobs for a trained_model_id
+            trained_model_id = request.GET.get('trained_model_id')
+            if not trained_model_id:
+                return JsonResponse({'status': 'error', 'message': 'trained_model_id query param required'}, status=400)
+            jobs = TrainingJob.objects(trained_model=trained_model_id).order_by('-created_at')
+            trained_model = TrainedModel.objects(id=trained_model_id).first()
+            versions_by_idx = {v.version: v for v in (trained_model.versions if trained_model else [])}
+            job_list = []
+            for idx, j in enumerate(jobs):
+                ver_num = len(jobs) - idx
+                ver = versions_by_idx.get(ver_num)
+                job_list.append({
+                    'id': str(j.id),
+                    'status': j.status,
+                    'message': j.message,
+                    'metrics': j.metrics,
+                    'epoch_history': [{'epoch': eh.epoch, 'metrics': eh.metrics} for eh in (j.epoch_history or [])],
+                    'created_at': j.created_at.isoformat() if j.created_at else None,
+                    'finished_at': j.finished_at.isoformat() if j.finished_at else None,
+                    'architecture': ver.architecture if ver else None,
+                    'include_top': ver.include_top if ver else None,
+                    'custom_top_layers': ver.custom_top_layers if ver else None,
+                })
+            return JsonResponse({'status': 'success', 'jobs': job_list})
 
+        job = TrainingJob.objects(id=job_id).first()
+        if not job:
+            return JsonResponse({'status': 'error', 'message': 'Job not found'}, status=404)
+
+        # If job says "running" but the process is dead, mark it as crashed
+        if job.status in ('pending', 'running') and job.pid:
+            try:
+                os.kill(job.pid, 0)  # signal 0 = check if process exists
+            except OSError:
+                job.status = 'error'
+                job.message = 'Training process died unexpectedly'
+                job.finished_at = __import__('datetime').datetime.utcnow()
+                job.save()
+
+        # Find matching version for architecture info
+        trained_model = job.trained_model
+        ver = None
+        if trained_model:
+            job_index = list(TrainingJob.objects(trained_model=trained_model).order_by('created_at')).index(job) + 1 if job else None
+            versions_by_idx = {v.version: v for v in trained_model.versions}
+            ver = versions_by_idx.get(job_index)
+
+        return JsonResponse({'status': 'success', 'job': {
+            'id': str(job.id),
+            'status': job.status,
+            'message': job.message,
+            'metrics': job.metrics,
+            'epoch_history': [{'epoch': eh.epoch, 'metrics': eh.metrics} for eh in (job.epoch_history or [])],
+            'pid': job.pid,
+            'created_at': job.created_at.isoformat() if job.created_at else None,
+            'finished_at': job.finished_at.isoformat() if job.finished_at else None,
+            'architecture': ver.architecture if ver else None,
+            'include_top': ver.include_top if ver else None,
+            'custom_top_layers': ver.custom_top_layers if ver else None,
+        }})
+
+    def post(self, request):
         try:
             data = json.loads(request.body)
 
@@ -1861,224 +1927,277 @@ class TrainModelView(View):
             if not project:
                 return JsonResponse({'status': 'error', 'message': 'Project not found'}, status=404)
 
-            # --- Collect images and labels from trained model tags ---
-            s3_keys = []
-            bucket_names = []
-            label_strings = []
-            for tag_ref in trained_model.tags:
-                tag_images = Image.objects(project=project, tag_references__tag_id=tag_ref.tag_id)
-                for img in tag_images:
-                    s3_keys.append(img.key)
-                    bucket_names.append(img.bucket_name)
-                    label_strings.append(tag_ref.name)
+            # Create job record
+            job = TrainingJob(trained_model=trained_model, project=project, status='pending', message='Job created, waiting to start')
+            job.save()
 
-            if not s3_keys:
-                return JsonResponse({'status': 'error', 'message': 'No images found for the trained model tags in this project'}, status=400)
-
-            # Build label mapping
-            unique_labels = sorted(set(label_strings))
-            label_to_idx = {l: i for i, l in enumerate(unique_labels)}
-            num_classes = len(trained_model.tags)
-            labels = [label_to_idx[l] for l in label_strings]
-            # One-hot encode labels
-            labels_onehot = tf.keras.utils.to_categorical(labels, num_classes=num_classes).tolist()
-
-            # --- Hyper-parameters ---
-            epochs = trained_model.epochs
-            batch_size = trained_model.batch_size
-            img_size = trained_model.img_size
-            lr = trained_model.learning_rate
-
-            # --- Download images from S3 to local disk ---
-            s3_service = S3Service()
-            cache_dir = tempfile.mkdtemp(prefix='train_cache_')
-            local_paths = []
-            for i in range(len(s3_keys)):
-                img_bytes = s3_service.download_file(bucket_names[i], s3_keys[i])
-                local_path = os.path.join(cache_dir, f'{i}.jpg')
-                with open(local_path, 'wb') as f:
-                    f.write(img_bytes)
-                local_paths.append(local_path)
-
-            # --- Stratified validation split (20% per class) ---
-            from collections import defaultdict
-            class_indices = defaultdict(list)
-            for i, l in enumerate(labels):
-                class_indices[l].append(i)
-            rng = np.random.default_rng(None)
-            train_indices = []
-            val_indices = []
-            for cls, idxs in class_indices.items():
-                idxs = rng.permutation(idxs).tolist()
-                val_size = max(1, int(len(idxs) * 0.2))
-                val_indices.extend(idxs[:val_size])
-                train_indices.extend(idxs[val_size:])
-
-            # Get the correct preprocessing function for the architecture
-            preprocess_fn = None
-            if hasattr(keras.applications, trained_model.architecture.lower()):
-                arch_module = getattr(keras.applications, trained_model.architecture.lower(), None)
-                if arch_module and hasattr(arch_module, 'preprocess_input'):
-                    preprocess_fn = arch_module.preprocess_input
-            if preprocess_fn is None:
-                # Try common module names
-                arch_modules = {
-                    'MobileNetV2': keras.applications.mobilenet_v2,
-                    'EfficientNetB0': keras.applications.efficientnet,
-                    'EfficientNetB1': keras.applications.efficientnet,
-                    'EfficientNetB2': keras.applications.efficientnet,
-                    'ResNet50': keras.applications.resnet,
-                    'VGG19': keras.applications.vgg19,
-                    'InceptionV3': keras.applications.inception_v3,
-                }
-                module = arch_modules.get(trained_model.architecture)
-                if module:
-                    preprocess_fn = module.preprocess_input
-
-            def load_local_image(path, label):
-                img = tf.io.read_file(path)
-                img = tf.image.decode_image(img, channels=3, expand_animations=False)
-                img = tf.image.resize(img, [img_size, img_size])
-                img = tf.cast(img, tf.float32)
-                if preprocess_fn is not None:
-                    img = preprocess_fn(img)
-                else:
-                    img = img / 255.0
-                img = tf.ensure_shape(img, [img_size, img_size, 3])
-                return img, label
-
-            def make_dataset(idx_list):
-                paths = [local_paths[i] for i in idx_list]
-                lbls = [labels_onehot[i] for i in idx_list]
-                ds = tf.data.Dataset.from_tensor_slices((paths, lbls))
-                ds = ds.map(load_local_image, num_parallel_calls=tf.data.AUTOTUNE)
-                return ds
-
-            # --- Build Keras model ---
-            input_shape = (img_size, img_size, 3)
-
-            if trained_model.architecture == 'custom':
-                # Full custom architecture from layer dicts
-                keras_model = keras.Sequential()
-                for layer_def in trained_model.custom_architecture:
-                    layer_type = layer_def.get('type')
-                    layer_cls = getattr(keras.layers, layer_type, None)
-                    if layer_cls is None:
-                        return JsonResponse({'status': 'error', 'message': f'Unknown layer type "{layer_type}"'}, status=400)
-                    params = {k: v for k, v in layer_def.items() if k != 'type'}
-                    keras_model.add(layer_cls(**params))
-            else:
-                # Known Keras architecture
-                arch_class = getattr(keras.applications, trained_model.architecture)
-                base = arch_class(
-                    weights='imagenet',
-                    include_top=trained_model.include_top,
-                    input_shape=input_shape if not trained_model.include_top else None,
-                )
-
-                if trained_model.include_top:
-                    # Strip the original classification head and replace with num_classes
-                    base.trainable = False
-                    base_out = base.layers[-2].output  # second-to-last layer output
-                    output = keras.layers.Dense(num_classes, activation='softmax')(base_out)
-                    keras_model = keras.Model(inputs=base.input, outputs=output)
-                else:
-                    # Base without top + user-defined custom top layers
-                    base.trainable = False
-                    layers = [base]
-                    if trained_model.custom_top_layers:
-                        for layer_def in trained_model.custom_top_layers:
-                            layer_type = layer_def.get('type')
-                            layer_cls = getattr(keras.layers, layer_type, None)
-                            if layer_cls is None:
-                                return JsonResponse({'status': 'error', 'message': f'Unknown layer type "{layer_type}"'}, status=400)
-                            params = {k: v for k, v in layer_def.items() if k != 'type'}
-                            layers.append(layer_cls(**params))
-                    else:
-                        # Default top when none specified
-                        layers.append(keras.layers.GlobalAveragePooling2D())
-                        layers.append(keras.layers.Dense(num_classes, activation='softmax'))
-                    keras_model = keras.Sequential(layers)
-
-            # Resolve metric strings to proper Keras objects where needed
-            resolved_metrics = []
-            for m in (trained_model.metrics or ['accuracy']):
-                if m == 'f1_score':
-                    resolved_metrics.append(keras.metrics.F1Score(average='macro', name='f1_score'))
-                else:
-                    resolved_metrics.append(m)
-
-            keras_model.compile(
-                optimizer=keras.optimizers.Adam(learning_rate=lr),
-                loss=trained_model.loss or 'categorical_crossentropy',
-                metrics=resolved_metrics,
-            )
-
-            train_ds = make_dataset(train_indices).shuffle(len(train_indices)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
-            val_ds = make_dataset(val_indices).batch(batch_size).prefetch(tf.data.AUTOTUNE)
-
-            # --- Train ---
-            early_stop = keras.callbacks.EarlyStopping(
-                monitor='val_loss', patience=trained_model.early_stopping_patience or 3, min_delta=trained_model.early_stopping_min_delta or 0.001, restore_best_weights=True
-            )
-            history = keras_model.fit(train_ds, validation_data=val_ds, epochs=epochs, callbacks=[early_stop])
-
-            # --- Save weights and upload to S3 ---
-            with tempfile.NamedTemporaryFile(suffix='.weights.h5', delete=False) as tmp:
-                tmp_path = tmp.name
-            try:
-                keras_model.save_weights(tmp_path)
-                file_size = os.path.getsize(tmp_path)
-                with open(tmp_path, 'rb') as f:
-                    model_bytes = f.read()
-            finally:
-                os.unlink(tmp_path)
-
-            bucket_name = 'trained-models'
-            s3_service.create_bucket(bucket_name)
-            s3_key = f'trained-models/{trained_model.name}_v{(trained_model.current_version or 0) + 1}.weights.h5'
-            metadata = s3_service.upload_file(bucket_name, s3_key, model_bytes)
-
-            # --- Version the TrainedModel ---
+            # Increment version immediately and create a non-ready version entry
             trained_model.current_version = (trained_model.current_version or 0) + 1
-            trained_model.epochs = epochs
-            trained_model.batch_size = batch_size
-            trained_model.img_size = img_size
-            trained_model.learning_rate = lr
             trained_model.create_version(
-                path=metadata['path'],
-                format='h5',
-                size=file_size,
-                notes=data.get('version_notes', f'Trained on project {project.name}'),
+                notes=data.get('version_notes', f'Training on project {project.name}'),
             )
             trained_model.save()
 
-            # Clean up cache
-            import shutil
-            shutil.rmtree(cache_dir, ignore_errors=True)
+            # Launch training as a detached subprocess (survives server restarts)
+            import subprocess
+            worker_script = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'train_worker.py')
+            cmd = [sys.executable, worker_script, str(job.id), trained_model_id, project_id, str(trained_model.current_version)]
+            log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'training_logs')
+            os.makedirs(log_dir, exist_ok=True)
+            log_file = open(os.path.join(log_dir, f'{job.id}.log'), 'w')
+            proc = subprocess.Popen(
+                cmd,
+                start_new_session=True,
+                stdout=log_file,
+                stderr=log_file,
+                close_fds=True,
+            )
+            job.pid = proc.pid
+            job.save()
 
-            final_metrics = {k: float(v[-1]) for k, v in history.history.items()}
+            # Reaper thread: waits for process exit to prevent zombie accumulation
+            def _reap(p, f):
+                p.wait()
+                f.close()
+            threading.Thread(target=_reap, args=(proc, log_file), daemon=True).start()
 
             return JsonResponse({
                 'status': 'success',
-                'message': 'Model trained and saved',
-                'trained_model': _serialize_trained_model(trained_model),
-                'training': {
-                    'epochs': epochs,
-                    'batch_size': batch_size,
-                    'image_size': img_size,
-                    'num_images': len(s3_keys),
-                    'num_classes': num_classes,
-                    'labels': unique_labels,
-                    'final_metrics': final_metrics,
-                    's3_path': metadata['path'],
-                },
-            }, status=200)
+                'message': 'Training started',
+                'job_id': str(job.id),
+            }, status=202)
         except Exception as e:
-            if 'cache_dir' in locals():
-                import shutil
-                shutil.rmtree(cache_dir, ignore_errors=True)
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+def _run_training(job_id, trained_model_id, project_id, data, version_number):
+    """Background training function."""
+    import tempfile
+    import tensorflow as tf
+    import tensorflow.keras as keras
+    import numpy as np
+    import shutil
+
+    job = TrainingJob.objects(id=job_id).first()
+    job.status = 'running'
+    job.save()
+
+    try:
+        trained_model = TrainedModel.objects(id=trained_model_id).first()
+        project = Project.objects(id=project_id).first()
+
+        # --- Collect images and labels ---
+        s3_keys = []
+        bucket_names = []
+        label_strings = []
+        for tag_ref in trained_model.tags:
+            tag_images = Image.objects(project=project, tag_references__tag_id=tag_ref.tag_id)
+            for img in tag_images:
+                s3_keys.append(img.key)
+                bucket_names.append(img.bucket_name)
+                label_strings.append(tag_ref.name)
+
+        if not s3_keys:
+            job.status = 'error'
+            job.message = 'No images found for the trained model tags in this project'
+            job.finished_at = datetime.datetime.utcnow()
+            job.save()
+            return
+
+        unique_labels = sorted(set(label_strings))
+        label_to_idx = {l: i for i, l in enumerate(unique_labels)}
+        num_classes = len(trained_model.tags)
+        labels = [label_to_idx[l] for l in label_strings]
+        labels_onehot = tf.keras.utils.to_categorical(labels, num_classes=num_classes).tolist()
+
+        epochs = trained_model.epochs
+        batch_size = trained_model.batch_size
+        img_size = trained_model.img_size
+        lr = trained_model.learning_rate
+
+        # --- Download images ---
+        s3_service = S3Service()
+        cache_dir = tempfile.mkdtemp(prefix='train_cache_')
+        local_paths = []
+        for i in range(len(s3_keys)):
+            img_bytes = s3_service.download_file(bucket_names[i], s3_keys[i])
+            local_path = os.path.join(cache_dir, f'{i}.jpg')
+            with open(local_path, 'wb') as f:
+                f.write(img_bytes)
+            local_paths.append(local_path)
+
+        # --- Stratified split ---
+        from collections import defaultdict
+        class_indices = defaultdict(list)
+        for i, l in enumerate(labels):
+            class_indices[l].append(i)
+        rng = np.random.default_rng(None)
+        train_indices = []
+        val_indices = []
+        for cls, idxs in class_indices.items():
+            idxs = rng.permutation(idxs).tolist()
+            val_size = max(1, int(len(idxs) * 0.2))
+            val_indices.extend(idxs[:val_size])
+            train_indices.extend(idxs[val_size:])
+
+        # Preprocessing
+        preprocess_fn = None
+        if hasattr(keras.applications, trained_model.architecture.lower()):
+            arch_module = getattr(keras.applications, trained_model.architecture.lower(), None)
+            if arch_module and hasattr(arch_module, 'preprocess_input'):
+                preprocess_fn = arch_module.preprocess_input
+        if preprocess_fn is None:
+            arch_modules = {
+                'MobileNetV2': keras.applications.mobilenet_v2,
+                'EfficientNetB0': keras.applications.efficientnet,
+                'EfficientNetB1': keras.applications.efficientnet,
+                'EfficientNetB2': keras.applications.efficientnet,
+                'ResNet50': keras.applications.resnet,
+                'VGG19': keras.applications.vgg19,
+                'InceptionV3': keras.applications.inception_v3,
+            }
+            module = arch_modules.get(trained_model.architecture)
+            if module:
+                preprocess_fn = module.preprocess_input
+
+        def load_local_image(path, label):
+            img = tf.io.read_file(path)
+            img = tf.image.decode_image(img, channels=3, expand_animations=False)
+            img = tf.image.resize(img, [img_size, img_size])
+            img = tf.cast(img, tf.float32)
+            if preprocess_fn is not None:
+                img = preprocess_fn(img)
+            else:
+                img = img / 255.0
+            img = tf.ensure_shape(img, [img_size, img_size, 3])
+            return img, label
+
+        def make_dataset(idx_list):
+            paths = [local_paths[i] for i in idx_list]
+            lbls = [labels_onehot[i] for i in idx_list]
+            ds = tf.data.Dataset.from_tensor_slices((paths, lbls))
+            ds = ds.map(load_local_image, num_parallel_calls=tf.data.AUTOTUNE)
+            return ds
+
+        # --- Build model ---
+        input_shape = (img_size, img_size, 3)
+
+        if trained_model.architecture == 'custom':
+            keras_model = keras.Sequential()
+            for layer_def in trained_model.custom_architecture:
+                layer_type = layer_def.get('type')
+                layer_cls = getattr(keras.layers, layer_type, None)
+                if layer_cls is None:
+                    raise ValueError(f'Unknown layer type "{layer_type}"')
+                params = {k: v for k, v in layer_def.items() if k != 'type'}
+                keras_model.add(layer_cls(**params))
+        else:
+            arch_class = getattr(keras.applications, trained_model.architecture)
+            base = arch_class(
+                weights='imagenet',
+                include_top=trained_model.include_top,
+                input_shape=input_shape if not trained_model.include_top else None,
+            )
+
+            if trained_model.include_top:
+                base.trainable = False
+                base_out = base.layers[-2].output
+                output = keras.layers.Dense(num_classes, activation='softmax')(base_out)
+                keras_model = keras.Model(inputs=base.input, outputs=output)
+            else:
+                base.trainable = False
+                layers = [base]
+                if trained_model.custom_top_layers:
+                    for layer_def in trained_model.custom_top_layers:
+                        layer_type = layer_def.get('type')
+                        layer_cls = getattr(keras.layers, layer_type, None)
+                        if layer_cls is None:
+                            raise ValueError(f'Unknown layer type "{layer_type}"')
+                        params = {k: v for k, v in layer_def.items() if k != 'type'}
+                        layers.append(layer_cls(**params))
+                else:
+                    layers.append(keras.layers.GlobalAveragePooling2D())
+                    layers.append(keras.layers.Dense(num_classes, activation='softmax'))
+                keras_model = keras.Sequential(layers)
+
+        resolved_metrics = []
+        for m in (trained_model.metrics or ['accuracy']):
+            if m == 'f1_score':
+                resolved_metrics.append(keras.metrics.F1Score(average='macro', name='f1_score'))
+            else:
+                resolved_metrics.append(m)
+
+        keras_model.compile(
+            optimizer=keras.optimizers.Adam(learning_rate=lr),
+            loss=trained_model.loss or 'categorical_crossentropy',
+            metrics=resolved_metrics,
+        )
+
+        train_ds = make_dataset(train_indices).shuffle(len(train_indices)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+        val_ds = make_dataset(val_indices).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+
+        # --- Train ---
+        class EpochProgressCallback(keras.callbacks.Callback):
+            def on_epoch_end(self, epoch, logs=None):
+                job.reload()
+                job.message = f'Epoch {epoch + 1}/{epochs} completed'
+                job.metrics = {k: float(v) for k, v in (logs or {}).items()}
+                job.save()
+
+        early_stop = keras.callbacks.EarlyStopping(
+            monitor='val_loss', patience=trained_model.early_stopping_patience or 3,
+            min_delta=trained_model.early_stopping_min_delta or 0.001, restore_best_weights=True
+        )
+        history = keras_model.fit(train_ds, validation_data=val_ds, epochs=epochs, callbacks=[early_stop, EpochProgressCallback()])
+
+        # --- Save weights ---
+        with tempfile.NamedTemporaryFile(suffix='.weights.h5', delete=False) as tmp:
+            tmp_path = tmp.name
+        try:
+            keras_model.save_weights(tmp_path)
+            file_size = os.path.getsize(tmp_path)
+            with open(tmp_path, 'rb') as f:
+                model_bytes = f.read()
+        finally:
+            os.unlink(tmp_path)
+
+        bucket_name = 'trained-models'
+        s3_service.create_bucket(bucket_name)
+        s3_key = f'trained-models/{trained_model.name}_v{version_number}.weights.h5'
+        metadata = s3_service.upload_file(bucket_name, s3_key, model_bytes)
+
+        # --- Mark version as ready ---
+        trained_model.reload()
+        for v in trained_model.versions:
+            if v.version == version_number:
+                v.path = metadata['path']
+                v.format = 'h5'
+                v.size = file_size
+                v.ready = True
+                break
+        trained_model.save()
+
+        shutil.rmtree(cache_dir, ignore_errors=True)
+
+        final_metrics = {k: float(v[-1]) for k, v in history.history.items()}
+
+        # Mark job success
+        job.reload()
+        job.status = 'success'
+        job.message = 'Model trained and saved'
+        job.metrics = final_metrics
+        job.finished_at = datetime.datetime.utcnow()
+        job.save()
+
+    except Exception as e:
+        if 'cache_dir' in locals():
+            import shutil
+            shutil.rmtree(cache_dir, ignore_errors=True)
+        job.reload()
+        job.status = 'error'
+        job.message = str(e)
+        job.finished_at = datetime.datetime.utcnow()
+        job.save()
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -2229,13 +2348,17 @@ class TrainedModelInferenceView(View):
             if not trained_model.versions:
                 return JsonResponse({'status': 'error', 'message': 'TrainedModel has no trained versions'}, status=400)
 
+            ready_versions = [v for v in trained_model.versions if v.ready]
+            if not ready_versions:
+                return JsonResponse({'status': 'error', 'message': 'No ready versions available'}, status=400)
+
             # Pick version
             if version_num:
-                version = next((v for v in trained_model.versions if v.version == int(version_num)), None)
+                version = next((v for v in ready_versions if v.version == int(version_num)), None)
                 if not version:
-                    return JsonResponse({'status': 'error', 'message': f'Version {version_num} not found'}, status=404)
+                    return JsonResponse({'status': 'error', 'message': f'Version {version_num} not found or not ready'}, status=404)
             else:
-                version = trained_model.versions[-1]
+                version = ready_versions[-1]
 
             if not version.path:
                 return JsonResponse({'status': 'error', 'message': 'Version has no S3 path'}, status=400)
@@ -2448,6 +2571,19 @@ class ImageView(View):
 
             IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.webp')
 
+            def _validate_image(data):
+                """Return True if data is fully decodable and resizable by TensorFlow."""
+                try:
+                    import tensorflow as tf
+                    img = tf.io.decode_jpeg(data, channels=3, try_recover_truncated=True, acceptable_fraction=0.8)
+                    # Also verify resize works (catches truncated data that decodes to wrong shape)
+                    img = tf.image.resize(img, [224, 224])
+                    # Force evaluation
+                    img.numpy()
+                    return True
+                except Exception:
+                    return False
+
             # Check if the uploaded file is a zip
             if file.name.lower().endswith('.zip'):
                 file_bytes = file.read()
@@ -2455,6 +2591,7 @@ class ImageView(View):
                     return JsonResponse({'status': 'error', 'message': 'Invalid zip file'}, status=400)
 
                 images = []
+                invalid_files = []
                 with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
                     for entry in zf.namelist():
                         # Skip directories and non-image files
@@ -2464,7 +2601,12 @@ class ImageView(View):
                         if not filename:
                             continue
                         img_data = zf.read(entry)
-                        s3_key = f'{user_id}/{project_id}/{filename}'
+
+                        if not _validate_image(img_data):
+                            invalid_files.append(filename)
+                            continue
+
+                        s3_key = f'{user_id}/{project_id}/{uuid.uuid4().hex[:8]}_{filename}'
                         metadata = s3_service.upload_file(self.BUCKET_NAME, s3_key, img_data)
 
                         img = Image(
@@ -2483,18 +2625,34 @@ class ImageView(View):
                         img.save()
                         images.append(img)
 
-                if not images:
+                if not images and not invalid_files:
                     return JsonResponse({'status': 'error', 'message': 'No valid images found in zip file'}, status=400)
+
+                if not images and invalid_files:
+                    return JsonResponse({
+                        'status': 'error',
+                        'message': 'All images in the zip are corrupted or invalid',
+                        'invalid_files': invalid_files,
+                    }, status=400)
 
                 return JsonResponse({
                     'status': 'success',
                     'message': f'{len(images)} images uploaded and created',
                     'images': [self._serialize(img) for img in images],
+                    'invalid_files': invalid_files,
                 }, status=201)
 
             # Single image upload
-            s3_key = f'{user_id}/{project_id}/{file.name}'
-            metadata = s3_service.upload_file(self.BUCKET_NAME, s3_key, file.read())
+            file_data = file.read()
+            if not _validate_image(file_data):
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'The uploaded image is corrupted or invalid',
+                    'invalid_files': [file.name],
+                }, status=400)
+
+            s3_key = f'{user_id}/{project_id}/{uuid.uuid4().hex[:8]}_{file.name}'
+            metadata = s3_service.upload_file(self.BUCKET_NAME, s3_key, file_data)
 
             img = Image(
                 name=file.name,
@@ -2515,6 +2673,7 @@ class ImageView(View):
                 'status': 'success',
                 'message': 'Image uploaded and created',
                 'image': self._serialize(img),
+                'invalid_files': [],
             }, status=201)
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
@@ -2553,6 +2712,24 @@ class ImageView(View):
             return JsonResponse({'status': 'success', 'message': 'Image deleted'})
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ImageFileView(View):
+    """Serve image file data from S3."""
+    def get(self, request, image_id):
+        try:
+            img = Image.objects(id=image_id).first()
+            if not img:
+                return HttpResponse(status=404)
+            s3_service = S3Service()
+            data = s3_service.download_file(img.bucket_name, img.key)
+            content_type = img.content_type or 'image/jpeg'
+            response = HttpResponse(data, content_type=content_type)
+            response['Cache-Control'] = 'public, max-age=86400'
+            return response
+        except Exception:
+            return HttpResponse(status=404)
 
 
 @method_decorator(csrf_exempt, name='dispatch')

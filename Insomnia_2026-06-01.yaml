@@ -1,0 +1,1553 @@
+type: collection.insomnia.rest/5.0
+schema_version: "5.1"
+name: Project v9
+meta:
+  id: wrk_023bd3f4aa65415fa6c0868206340e9c
+  created: 1775506577967
+  modified: 1775506577967
+  description: ""
+collection:
+  - name: Django API - User, Project, Tag CRUD
+    meta:
+      id: fld_83f22e88b2784b94be487268134a8d12
+      created: 1772736061031
+      modified: 1773091179373
+      sortKey: -1772736043140
+      description: Complete CRUD API for User, Project, Tag, TrainedModel, and
+        PreTrainedModel management with authentication
+    children:
+      - name: Authentication
+        meta:
+          id: fld_f50c25b5bf3340a3a9509a7d9c42c205
+          created: 1772736061033
+          modified: 1772736061033
+          sortKey: -1772736043139
+          description: ""
+        children:
+          - url: "{{base_url}}/api/auth/"
+            name: Register User
+            meta:
+              id: req_f075c6f7a10f49119675b6594695dba4
+              created: 1772736061035
+              modified: 1772736061035
+              isPrivate: false
+              description: Register a new user with name, email, and password
+              sortKey: -1772736043138
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "action": "register",
+                  "name": "John Doe",
+                  "email": "john@example.com",
+                  "password": "password123"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/auth/"
+            name: Login
+            meta:
+              id: req_052892f166914c23a59a23f2d8c8fae7
+              created: 1772736061039
+              modified: 1772736061039
+              isPrivate: false
+              description: Login with email and password to start a session
+              sortKey: -1772736043137
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "action": "login",
+                  "email": "john@example.com",
+                  "password": "password123"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/auth/"
+            name: Logout
+            meta:
+              id: req_3cdbf8ca9299425d9fcca5bda47b296d
+              created: 1772736061040
+              modified: 1772736061040
+              isPrivate: false
+              description: Logout and end the current session
+              sortKey: -1772736043136
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "action": "logout"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Users CRUD
+        meta:
+          id: fld_8f5a7196f0a144b182a91cbf2ed7f019
+          created: 1772736061040
+          modified: 1772736061040
+          sortKey: -1772736043135
+          description: ""
+        children:
+          - url: "{{base_url}}/api/users/"
+            name: List All Users
+            meta:
+              id: req_80f8369eab0440c79bfee902e8c286c9
+              created: 1772736061041
+              modified: 1772736061041
+              isPrivate: false
+              description: Get a list of all users
+              sortKey: -1772736043134
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/users/69b44fb90ae216e44b802fec/"
+            name: Get Single User
+            meta:
+              id: req_748a4f52f6cf4602a20ada77bd1139de
+              created: 1772736061042
+              modified: 1773424609315
+              isPrivate: false
+              description: Get details of a specific user by ID
+              sortKey: -1772736043133
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/users/{{user_id}}/"
+            name: Update User
+            meta:
+              id: req_9d9e7495e2314f3185880f0f2deee2fa
+              created: 1772736061043
+              modified: 1772736061043
+              isPrivate: false
+              description: Update an existing user (all fields optional)
+              sortKey: -1772736043131
+            method: PUT
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "name": "Jane Doe",
+                  "email": "jane.doe@example.com",
+                  "password": "newpassword123",
+                  "is_active": true
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/users/"
+            name: Create User
+            meta:
+              id: req_a0fa2c60aa6b4c8bb3660de38b7d2dac
+              created: 1772736061043
+              modified: 1772736061043
+              isPrivate: false
+              description: Create a new user
+              sortKey: -1772736043132
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "name": "Jane Smith",
+                  "email": "jane@example.com",
+                  "password": "password123",
+                  "project_ids": []
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/users/{{user_id}}/"
+            name: Delete User
+            meta:
+              id: req_9d16871666004161aef0c9e23ad21928
+              created: 1772736061044
+              modified: 1772736061044
+              isPrivate: false
+              description: Delete a user by ID
+              sortKey: -1772736043130
+            method: DELETE
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Projects CRUD
+        meta:
+          id: fld_69e550150a754852baf9c25287cc6279
+          created: 1772736061046
+          modified: 1772736061046
+          sortKey: -1772736043129
+          description: ""
+        children:
+          - url: "{{base_url}}/api/projects/"
+            name: List All Projects
+            meta:
+              id: req_b4b8956b4f19424b85e7d40ccde1d37b
+              created: 1772736061047
+              modified: 1772736061047
+              isPrivate: false
+              description: Get a list of all projects
+              sortKey: -1772736043128
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/projects/69b458e20ae216e44b802ff7/"
+            name: Get Single Project
+            meta:
+              id: req_b575b33e808045eab27b59dcf3880047
+              created: 1772736061047
+              modified: 1773426924143
+              isPrivate: false
+              description: Get details of a specific project by ID
+              sortKey: -1772736043127
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/projects/{{project_id}}/dashboard/"
+            name: Get Project Dashboard
+            meta:
+              id: req_a1b2c3d4e5f6789012345678
+              created: 1780000000000
+              modified: 1780000000000
+              isPrivate: false
+              description: Get project dashboard with summary of tags (with image
+                counts), trained models, pretrained models, detection models,
+                and total image count.
+              sortKey: -1772736043126.5
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/projects/"
+            name: Create Project
+            meta:
+              id: req_4da5d5e147b143968680f3b8957b41ca
+              created: 1772736061048
+              modified: 1773426911874
+              isPrivate: false
+              description: Create a new project
+              sortKey: -1772736043126
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "name": "My Project",
+                  "description": "A test project 4",
+                  "tags": [
+                    {"name": "object", "tag_id": null}
+                  ],
+                  "user_id": "69b450d20ae216e44b802ff1"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/projects/69b450d70ae216e44b802ff2/"
+            name: Update Project
+            meta:
+              id: req_fa79525d0fa84f848160ba3027a6dc42
+              created: 1772736061049
+              modified: 1773768024248
+              isPrivate: false
+              description: Update an existing project (all fields optional)
+              sortKey: -1772736043125
+            method: PUT
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "tags": [
+                    {"name": "Orange", "tag_id": null},
+                		{"name": "Brown", "tag_id": null},
+                		{"name": "Orange Tabby Cat", "tag_id": null},
+                		{"name": "Havana Brown", "tag_id": null},
+                		{"name": "Cat", "tag_id": null}
+                  ]
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/projects/{{project_id}}/"
+            name: Delete Project
+            meta:
+              id: req_980cf2334dfb4ba6a2d1e7fac461a3a9
+              created: 1772736061050
+              modified: 1772736061050
+              isPrivate: false
+              description: Delete a project by ID
+              sortKey: -1772736043124
+            method: DELETE
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Tags CRUD
+        meta:
+          id: fld_797c6b18e06b4759951513dfa676f359
+          created: 1772736061050
+          modified: 1772736061050
+          sortKey: -1772736043123
+          description: ""
+        children:
+          - url: "{{base_url}}/api/tags/?project_id={{project_id}}"
+            name: List All Tags
+            meta:
+              id: req_bc0d7652a7e24f93a1a60653a97943e0
+              created: 1772736061051
+              modified: 1780000000000
+              isPrivate: false
+              description: "Get a list of all tags. Optional query param: project_id
+                to filter tags by project."
+              sortKey: -1772736043122
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/tags/{{tag_id}}/"
+            name: Get Single Tag
+            meta:
+              id: req_76d8ceb4c66f47fda27ada67cdcac07b
+              created: 1772736061052
+              modified: 1772736061052
+              isPrivate: false
+              description: Get details of a specific tag by ID
+              sortKey: -1772736043121
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/tags/"
+            name: Create Tag
+            meta:
+              id: req_c9bf6b9799af43718c88efe69349df78
+              created: 1772736061055
+              modified: 1778877253352
+              isPrivate: false
+              description: Create a new tag with a name and optional project_id
+              sortKey: -1772736043120
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "name": "Black",
+                  "project_id": "69b450d70ae216e44b802ff2"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/tags/{{tag_id}}/"
+            name: Update Tag
+            meta:
+              id: req_eaf989f3380942f987cf774b5200ff9c
+              created: 1772736061056
+              modified: 1772736061056
+              isPrivate: false
+              description: Update an existing tag (all fields optional)
+              sortKey: -1772736043119
+            method: PUT
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "name": "Urgent",
+                  "project_id": "{{project_id}}"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/tags/{{tag_id}}/"
+            name: Delete Tag
+            meta:
+              id: req_843496e31dfc4e7ba1786112aecea9a9
+              created: 1772736061057
+              modified: 1772736061057
+              isPrivate: false
+              description: Delete a tag by ID
+              sortKey: -1772736043118
+            method: DELETE
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: PreTrained Models CRUD
+        meta:
+          id: fld_2dea520d2b4c46eab5e21168c79900d3
+          created: 1772736061058
+          modified: 1772736061058
+          sortKey: -1772736043111
+          description: CRUD for pretrained Keras models. POST builds the model from
+            architecture+dataset, saves as .h5, and uploads to S3 automatically.
+        children:
+          - url: "{{base_url}}/api/pretrained-models/"
+            name: Build and Upload PreTrained Model
+            meta:
+              id: req_248e4a73a8694542b113e5726f358284
+              created: 1772736061058
+              modified: 1773946058823
+              isPrivate: false
+              description: "Build a Keras pretrained model from architecture+dataset, save as
+                .h5, upload to S3 (LocalStack), and persist metadata in MongoDB.
+                Supported architectures: VGG16, VGG19, MobileNet, MobileNetV2,
+                ResNet50, ResNet101, InceptionV3, EfficientNetB0-B7,
+                DenseNet121, etc. Use dataset=imagenet to load pretrained
+                weights; any other value uses random weights."
+              sortKey: -1772736043108
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "architecture": "EfficientNetB0",
+                  "dataset": "imagenet",
+                  "description": "EfficientNetB0 with ImageNet weights",
+                  "project_id": "69b450d70ae216e44b802ff2"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/pretrained-models/{{model_id}}/"
+            name: Delete PreTrained Model
+            meta:
+              id: req_85a8f02f159b46789ab5339a6cc9e4c4
+              created: 1772736061058
+              modified: 1772736061058
+              isPrivate: false
+              description: Delete a pretrained model by ID
+              sortKey: -1772736043106
+            method: DELETE
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/pretrained-models/"
+            name: List All PreTrained Models
+            meta:
+              id: req_a31c615d3a684457995b3718a85d6f6a
+              created: 1772736061058
+              modified: 1772736061058
+              isPrivate: false
+              description: Get a list of all pretrained models
+              sortKey: -1772736043110
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/pretrained-models/69b2f9834cb884a296766e9c/"
+            name: Update PreTrained Model
+            meta:
+              id: req_abea5d2984604d8dbd40d91bf68c9186
+              created: 1772736061058
+              modified: 1773349078927
+              isPrivate: false
+              description: Update metadata of an existing pretrained model (all fields
+                optional)
+              sortKey: -1772736043107
+            method: PUT
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "name": "MobileNet_imagenet_v2",
+                  "description": "Updated MobileNet with ImageNet weights",
+                  "enabled": true
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/pretrained-models/{{model_id}}/"
+            name: Get Single PreTrained Model
+            meta:
+              id: req_eb2f3f3d80f043babf381a4c8e77090b
+              created: 1772736061058
+              modified: 1772736061058
+              isPrivate: false
+              description: Get details of a specific pretrained model by ID
+              sortKey: -1772736043109
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Inference
+        meta:
+          id: fld_ca159f607d91414785c2ce014f055199
+          created: 1772736061058
+          modified: 1773419771538
+          sortKey: -1772736043105
+          description: ""
+        children:
+          - url: "{{base_url}}/api/inference/"
+            name: Inference
+            meta:
+              id: req_6cff44a4c08c46d5b2e7c4f78413ed04
+              created: 1772736061059
+              modified: 1778914953332
+              isPrivate: false
+              description: Upload a file to S3 with optional project and tag associations
+              sortKey: -1772736043104
+            method: POST
+            body:
+              mimeType: multipart/form-data
+              params:
+                - name: project_id
+                  value: 69b450d70ae216e44b802ff2
+                - name: pretrained_model_id
+                  value: 6a07f11284f48a0270a82f17
+                  description: ""
+                  disabled: false
+                - name: image
+                  value: ""
+                  description: ""
+                  disabled: false
+                  fileName: /Users/cesarmg/Downloads/img_00103_1.jpg
+                  type: file
+            headers:
+              - name: Content-Type
+                value: multipart/form-data
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/pretrained-detection-models/inference/"
+            name: YOLO Inference
+            meta:
+              id: req_d6414aed2b11474e8529ab30e9a95890
+              created: 1774481109653
+              modified: 1778695932213
+              isPrivate: false
+              description: Run inference with a YOLO pretrained detection model. Returns a ZIP
+                containing results.json (predictions), annotated image with
+                overlays, and mask PNGs (segmentation only). Task is
+                auto-detected from the model (detect, segment, classify, pose,
+                obb).
+              sortKey: -1772736043003
+            method: POST
+            body:
+              mimeType: multipart/form-data
+              params:
+                - name: pretrained_detection_model_id
+                  value: 6a04bef46e786c0f466153ac
+                  description: ID of the PreTrainedDetectionModel to run inference with
+                - name: image
+                  value: ""
+                  description: Image file to run inference on
+                  fileName: /Users/cesarmg/Downloads/orangeCat.jpg
+                  type: file
+                - name: confidence
+                  value: "0.25"
+                  description: Confidence threshold (0-1, default 0.25)
+                  disabled: true
+            headers:
+              - name: Content-Type
+                value: multipart/form-data
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/trained-models/inference/"
+            name: Trained Model Inference
+            meta:
+              id: req_370ec2794f95437baf629a917009c7e0
+              created: 1774584217976
+              modified: 1778915609156
+              isPrivate: false
+              description: Run inference on a TrainedModel. Downloads weights from S3 for the
+                specified version (or latest), rebuilds the model architecture,
+                and returns predictions mapped to tag labels. Supports Keras
+                architectures (with/without top, custom top layers) and fully
+                custom architectures.
+              sortKey: -1772736043103
+            method: POST
+            body:
+              mimeType: multipart/form-data
+              params:
+                - name: trained_model_id
+                  value: 6a07f11284f48a0270a82f17
+                  description: ID of the TrainedModel to run inference with
+                - name: image
+                  value: ""
+                  description: Image file to classify
+                  fileName: /Users/cesarmg/Downloads/img_00161_1.jpg
+                  type: file
+                - name: project_id
+                  value: 69b450d70ae216e44b802ff2
+                  description: Optional version number (defaults to latest)
+                  disabled: false
+            headers:
+              - name: Content-Type
+                value: multipart/form-data
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Trained Models CRUD
+        meta:
+          id: fld_cc29717d36fe4cbfafb96a1d348cfec6
+          created: 1772736061058
+          modified: 1772736061058
+          sortKey: -1772736043117
+          description: CRUD operations for trained models stored in MongoDB
+        children:
+          - url: "{{base_url}}/api/trained-models/"
+            name: Create Trained Model - Keras with top
+            meta:
+              id: req_8dcd498fa4a64fbda768122e2ab45138
+              created: 1772736061058
+              modified: 1778877408208
+              isPrivate: false
+              description: Create a trained model using a known Keras architecture with the
+                classification head included (include_top=true).
+              sortKey: -1772736043114
+            method: POST
+            body:
+              mimeType: text/plain
+              text: >
+                {
+                  "name": "EfficientNetB0 Classifier",
+                  "description": "EfficientNetB0 with full top for classification for cat clasification",
+                  "architecture": "EfficientNetB0",
+                  "include_top": true,
+                  "epochs": 10,
+                  "batch_size": 32,
+                  "img_size": 224,
+                  "learning_rate": 0.001,
+                  "loss": "sparse_categorical_crossentropy",
+                  "metrics": ["accuracy"],
+                  "tag_ids": [
+                    "6a0782b5d8fa21952d269857",
+                    "69b98c73449f72685516cefa",
+                		"69b98c73449f72685516cef9"
+                  ],
+                  "project_id": "69b450d70ae216e44b802ff2"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/trained-models/?project_id={{project_id}}"
+            name: List All Trained Models
+            meta:
+              id: req_b3a542e634d2491b8b50de3b3b79a3e4
+              created: 1772736061058
+              modified: 1780000000000
+              isPrivate: false
+              description: "Get a list of all trained models. Query param: project_id
+                (required, returns empty list if omitted)."
+              sortKey: -1772736043116
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/trained-models/6a0cde9e4b8cd39ec5d22a27/"
+            name: Get Single Trained Model
+            meta:
+              id: req_c3896d450248466e8fa6e434a7033cf3
+              created: 1772736061058
+              modified: 1779234434029
+              isPrivate: false
+              description: Get details of a specific trained model by ID (includes version
+                history)
+              sortKey: -1772736043115
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/trained-models/{{model_id}}/"
+            name: Update Trained Model
+            meta:
+              id: req_d942267e065b4efdb07c66852e61c0d6
+              created: 1772736061058
+              modified: 1773780400000
+              isPrivate: false
+              description: Update an existing trained model. Supports changing architecture,
+                include_top, custom_top_layers, custom_architecture, loss,
+                metrics. Each update creates a new version automatically.
+              sortKey: -1772736043113
+            method: PUT
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "description": "Switched to no-top with custom head",
+                  "include_top": false,
+                  "custom_top_layers": [
+                    {"type": "GlobalAveragePooling2D"},
+                    {"type": "Dense", "units": 128, "activation": "relu"},
+                    {"type": "Dense", "units": 5, "activation": "softmax"}
+                  ],
+                  "loss": "sparse_categorical_crossentropy",
+                  "metrics": ["accuracy"],
+                  "version_notes": "Changed to custom head"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/trained-models/{{model_id}}/"
+            name: Delete Trained Model
+            meta:
+              id: req_ec4bea2973254f0aacb6ec81e5f2c011
+              created: 1772736061058
+              modified: 1772736061058
+              isPrivate: false
+              description: Delete a trained model by ID
+              sortKey: -1772736043112
+            method: DELETE
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/trained-models/"
+            name: Create Trained Model - Fully custom architecture
+            meta:
+              id: req_19fee8c339f64d6189c84c2b08543806
+              created: 1773780400000
+              modified: 1778879587926
+              isPrivate: false
+              description: Create a trained model with a fully custom architecture defined
+                layer by layer. Set architecture to "custom" and provide the
+                complete layer list in custom_architecture.
+              sortKey: -1772736043113.3
+            method: POST
+            body:
+              mimeType: text/plain
+              text: >-
+                {
+                  "name": "Custom CNN",
+                  "description": "Fully custom CNN architecture for cat classification",
+                  "architecture": "custom",
+                  "epochs": 20,
+                  "batch_size": 32,
+                  "img_size": 224,
+                  "learning_rate": 0.001,
+                  "loss": "sparse_categorical_crossentropy",
+                  "metrics": ["accuracy"],
+                  "custom_architecture": [
+                    {"type": "InputLayer", "input_shape": [224, 224, 3]},
+                    {"type": "Conv2D", "filters": 32, "kernel_size": 3, "activation": "relu"},
+                    {"type": "MaxPooling2D", "pool_size": 2},
+                    {"type": "Conv2D", "filters": 64, "kernel_size": 3, "activation": "relu"},
+                    {"type": "MaxPooling2D", "pool_size": 2},
+                    {"type": "Flatten"},
+                    {"type": "Dense", "units": 128, "activation": "relu"},
+                    {"type": "Dropout", "rate": 0.2}
+                  ],
+                	"project_id": "69b450d70ae216e44b802ff2",
+                  "tag_ids": [
+                    "6a0782b5d8fa21952d269857",
+                    "69b98c73449f72685516cefa",
+                		"69b98c73449f72685516cef9"
+                  ]
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/trained-models/"
+            name: Create Trained Model - Keras without top + custom layers
+            meta:
+              id: req_9b2e57e23ea24ac2a18d4e8315b3b923
+              created: 1773780400000
+              modified: 1778905354707
+              isPrivate: false
+              description: Create a trained model using a known Keras architecture without the
+                classification head (include_top=false) and with custom
+                replacement top layers.
+              sortKey: -1772736043113.5
+            method: POST
+            body:
+              mimeType: text/plain
+              text: >-
+                {
+                  "name": "EfficientNetB0 Custom Head",
+                  "description": "EfficientNetB0 feature extractor with custom classification head",
+                  "architecture": "EfficientNetB0",
+                  "include_top": false,
+                  "epochs": 50,
+                  "batch_size": 32,
+                  "img_size": 224,
+                  "learning_rate": 0.001,
+                  "loss": "categorical_crossentropy",
+                  "metrics": ["accuracy"],
+                  "custom_top_layers": [
+                    {"type": "GlobalAveragePooling2D"},
+                    {"type": "Dense", "units": 1024, "activation": "relu"},
+                		{"type": "BatchNormalization"},
+                    {"type": "Dropout", "rate": 0.5},
+                		{"type": "Dense", "units": 256, "activation": "relu"},
+                		{"type": "BatchNormalization"},
+                    {"type": "Dropout", "rate": 0.5},
+                		{"type": "Dense", "units": 64, "activation": "relu"},
+                		{"type": "BatchNormalization"},
+                    {"type": "Dropout", "rate": 0.5}		
+                  ],
+                	"project_id": "69b450d70ae216e44b802ff2",
+                  "tag_ids": [
+                    "6a0797f9c915333ab1023325",
+                    "6a0797f9c915333ab1023326",
+                    "6a0797f9c915333ab1023327",
+                    "6a0797f9c915333ab1023328",
+                    "6a0797f9c915333ab1023329",
+                    "6a0797f9c915333ab102332a",
+                    "6a0797f9c915333ab102332b",
+                    "6a0797f9c915333ab102332c",
+                    "6a0797f9c915333ab102332d",
+                    "6a0797f9c915333ab102332e",
+                    "6a0797f9c915333ab102332f",
+                    "6a0797f9c915333ab1023330"
+                  ]
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Miscellaneous
+        meta:
+          id: fld_b554c055c7bc4d758521186b6a095a6e
+          created: 1772736061059
+          modified: 1772736061059
+          sortKey: -1772736043103
+          description: ""
+        children:
+          - url: "{{base_url}}/"
+            name: Home (Welcome)
+            meta:
+              id: req_67e2107e5c244fcc93bb9a6517ef1e63
+              created: 1772736061060
+              modified: 1772736061060
+              isPrivate: false
+              description: Get welcome message from home endpoint
+              sortKey: -1772736043102
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/login/"
+            name: Login Page
+            meta:
+              id: req_d3f96dc5bf7b4762ae5598fb74f4ed1f
+              created: 1772736061062
+              modified: 1772736061062
+              isPrivate: false
+              description: Get the login/register HTML page
+              sortKey: -1772736043101
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Images CRUD
+        meta:
+          id: fld_4c2b87c6fb13494d8d357054c3edb918
+          created: 1773091200000
+          modified: 1773091200000
+          sortKey: -1772736043104
+          description: CRUD for images. POST uploads to S3 'images' bucket with path
+            user_id/project_id/filename.
+        children:
+          - url: "{{base_url}}/api/images/?project_id={{project_id}}&page=1&page_size=20"
+            name: List Images (paginated)
+            meta:
+              id: req_16c2216e2cc440cbad2e5c9ae3d13667
+              created: 1773091200000
+              modified: 1780000000000
+              isPrivate: false
+              description: "List images for a project with pagination. Query params:
+                project_id (required), tag_id (optional filter), name (optional
+                substring filter), page (default 1), page_size (default 20).
+                Returns: images array, count, total, page, page_size."
+              sortKey: -1773091200006
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/images/{{image_id}}/file/"
+            name: Get Image File (S3 proxy)
+            meta:
+              id: req_f2a3b4c5d6e7890123456789
+              created: 1780000000000
+              modified: 1780000000000
+              isPrivate: false
+              description: Serve the actual image binary from S3 proxied through
+                Django. Returns the image with appropriate Content-Type header
+                and Cache-Control (max-age=86400). Use this URL in <img> tags
+                for remote access instead of direct S3/LocalStack URLs.
+              sortKey: -1773091200005.5
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/images/{{image_id}}/"
+            name: Update Image
+            meta:
+              id: req_a83ebd8247014f99868e47d49ae7e18a
+              created: 1773091200000
+              modified: 1773091200000
+              isPrivate: false
+              description: Update image metadata (project, tags)
+              sortKey: -1773091200003
+            method: PUT
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "project_id": "{{project_id}}",
+                  "tags": [
+                    {"name": "updated-tag"}
+                  ]
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/images/{{image_id}}/"
+            name: Delete Image
+            meta:
+              id: req_ba609dfebf9b40c393a082b252978f8d
+              created: 1773091200000
+              modified: 1773091200000
+              isPrivate: false
+              description: Delete an image by ID
+              sortKey: -1773091200002
+            method: DELETE
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/images/{{image_id}}/"
+            name: Get Single Image
+            meta:
+              id: req_e785f6a130924a4c969e08f778cd7aa6
+              created: 1773091200000
+              modified: 1773091200000
+              isPrivate: false
+              description: Get details of a specific image by ID
+              sortKey: -1773091200005
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/images/"
+            name: Upload Image
+            meta:
+              id: req_f1271c54906a46eda9a0198835ff24f0
+              created: 1773091200000
+              modified: 1778881758468
+              isPrivate: false
+              description: Upload an image file to S3 (bucket 'images', key
+                user_id/project_id/filename) and create an Image document
+              sortKey: -1773091200004
+            method: POST
+            body:
+              mimeType: multipart/form-data
+              params:
+                - name: user_id
+                  value: 69b450d20ae216e44b802ff1
+                  description: ID of the user uploading the image
+                - name: project_id
+                  value: 69b450d70ae216e44b802ff2
+                  description: ID of the project this image belongs to
+                - name: file
+                  value: ""
+                  description: The image file to upload
+                  fileName: /Users/cesarmg/Downloads/orangeCats.zip
+                  type: file
+                - name: tags
+                  value: '[{"name": "Black", "tag_id": "6a078347d8fa21952d269858"},{"name":
+                    "Bombay Cat", "tag_id": "6a0782b5d8fa21952d269857"},{"name":
+                    "Cat", "tag_id": "69b98d5b449f72685516cefb"}]'
+                  description: Optional JSON array of tag references
+                  disabled: false
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: Training
+        meta:
+          id: fld_5531f2b71848420f82b94fcf989ad508
+          created: 1773780400000
+          modified: 1773780400000
+          sortKey: -1772736043116.5
+          description: "Train a model using images from a project. Supports three
+            architecture modes: Keras with top, Keras without top + custom
+            layers, and fully custom architecture. Uses hybrid tf.data pipeline
+            that streams from S3 and caches to disk."
+        children:
+          - url: "{{base_url}}/api/trained-models/train/{{job_id}}/"
+            name: Get Training Job Status
+            meta:
+              id: req_b1c2d3e4f5a6789012345670
+              created: 1780000000000
+              modified: 1780000000000
+              isPrivate: false
+              description: "Check the status of a specific training job by job ID.
+                Returns: status (pending/running/success/error), message,
+                metrics (final), epoch_history (per-epoch metrics), pid,
+                created_at, finished_at, architecture info. If the process died
+                unexpectedly, status is auto-updated to 'error'."
+              sortKey: -1773780400007
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/trained-models/train/?trained_model_id={{model_id}}"
+            name: List Training Jobs for Model
+            meta:
+              id: req_c2d3e4f5a6b7890123456781
+              created: 1780000000000
+              modified: 1780000000000
+              isPrivate: false
+              description: "List all training jobs for a specific trained model,
+                ordered by most recent first. Each job includes status, metrics,
+                epoch_history, architecture, include_top, and custom_top_layers.
+                Query param: trained_model_id (required)."
+              sortKey: -1773780400006.5
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/trained-models/train/"
+            name: Train - Keras with top
+            meta:
+              id: req_446f15d960f04913a07d5c760970653b
+              created: 1773780400000
+              modified: 1775510225012
+              isPrivate: false
+              description: "Train a model that uses a known Keras architecture with
+                include_top=true. The original last classification layer is
+                replaced with a Dense layer matching num_classes. If num_classes
+                is not provided, it defaults to the number of unique tag labels
+                found in the project images. Requires: a TrainedModel created
+                with a Keras architecture and include_top=true, and a Project
+                with tagged images uploaded to S3. Hyper-parameters (epochs,
+                batch_size, img_size, learning_rate) are read from the
+                TrainedModel."
+              sortKey: -1773780400006
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "trained_model_id": "69d42287039963097a2812a1",
+                  "project_id": "69b450d70ae216e44b802ff2",
+                  "version_notes": "Version 1"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/trained-models/train/"
+            name: Train - Fully custom architecture
+            meta:
+              id: req_4478d6e9491943ff97affb01c7690376
+              created: 1773780400000
+              modified: 1778879597513
+              isPrivate: false
+              description: 'Train a model with a fully custom architecture
+                (architecture="custom"). The entire model is built from the
+                custom_architecture layer definitions and trained from scratch.
+                Requires: a TrainedModel created with architecture="custom" and
+                custom_architecture defined, and a Project with tagged images
+                uploaded to S3. Hyper-parameters (epochs, batch_size, img_size,
+                learning_rate) are read from the TrainedModel.'
+              sortKey: -1773780400004
+            method: POST
+            body:
+              mimeType: text/plain
+              text: >-
+                {
+                  "trained_model_id": "6a078c66c915333ab1023224",
+                  "project_id": "69b450d70ae216e44b802ff2",
+                  "version_notes": "Fully custom CNN architecture for cat classification version 1"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/trained-models/train/"
+            name: Train - Keras without top + custom layers
+            meta:
+              id: req_a414cb2792e94f5bb57f9f1e02439b57
+              created: 1773780400000
+              modified: 1779296203449
+              isPrivate: false
+              description: "Train a model that uses a known Keras architecture with
+                include_top=false and custom replacement top layers. The base
+                model is frozen as a feature extractor and only the custom top
+                layers are trained. Requires: a TrainedModel created with
+                include_top=false and custom_top_layers, and a Project with
+                tagged images uploaded to S3. Hyper-parameters (epochs,
+                batch_size, img_size, learning_rate) are read from the
+                TrainedModel."
+              sortKey: -1773780400005
+            method: POST
+            body:
+              mimeType: text/plain
+              text: >-
+                {
+                  "trained_model_id": "6a0de5bea78d5efc10eec0c3",
+                  "project_id": "6a0b5feabfa686dd86bc58e6",
+                  "version_notes": "Training with frozen base + custom head for cat classification version 1"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+      - name: PreTrained Detection Models CRUD (YOLO)
+        meta:
+          id: fld_fef683cea0de48059678a9789d2fc159
+          created: 1774481109653
+          modified: 1774481109653
+          sortKey: -1772736043105.5
+          description: CRUD for YOLO pretrained detection models. POST downloads the YOLO
+            model, uploads to S3, and persists metadata. Supports
+            attach_existing mode to link an already-built model to a project.
+        children:
+          - url: "{{base_url}}/api/pretrained-detection-models/"
+            name: List All PreTrained Detection Models
+            meta:
+              id: req_285e65c5fc844adca3be0b99c1fd1776
+              created: 1774481109653
+              modified: 1774481109653
+              isPrivate: false
+              description: Get a list of all pretrained detection models
+              sortKey: -1774481109010
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/pretrained-detection-models/"
+            name: Download and Upload YOLO Model
+            meta:
+              id: req_39b56967693644d281ace5e4ae52dbc3
+              created: 1774481109653
+              modified: 1778696576045
+              isPrivate: false
+              description: Download a YOLO pretrained model, upload to S3, and persist
+                metadata in MongoDB. If the model already exists, it will be
+                attached to the project instead. Supported models include
+                yolov8n, yolov8s, yolov8m, yolov8l, yolov8x, yolo11n, yolo11s,
+                yolo11m, yolo11l, yolo11x, and their -seg, -cls, -pose, -obb,
+                -oiv7 variants.
+              sortKey: -1774481109008
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "model": "yolo26n-seg",
+                  "dataset": "coco",
+                  "project_id": "69d40d48e37275e95f730b5a",
+                  "description": "yolo26n-seg segmentation model for coco"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/pretrained-detection-models/"
+            name: Attach Existing YOLO Model to Project
+            meta:
+              id: req_431afd9ac4b14fb783e4923d56fea8e9
+              created: 1774481109653
+              modified: 1774481109653
+              isPrivate: false
+              description: Attach an already-built YOLO model to a project without
+                re-downloading or re-uploading. The model must have been
+                previously built via the download endpoint.
+              sortKey: -1774481109007
+            method: POST
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "model": "yolov8n",
+                  "dataset": "coco",
+                  "attach_existing": true,
+                  "project_id": "69b450d70ae216e44b802ff2"
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/pretrained-detection-models/{{detection_model_id}}/"
+            name: Delete PreTrained Detection Model
+            meta:
+              id: req_5c161f93390a47b1911dbfdcc2f6b8e4
+              created: 1774481109653
+              modified: 1774481109653
+              isPrivate: false
+              description: Delete a pretrained detection model by ID
+              sortKey: -1774481109005
+            method: DELETE
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/pretrained-detection-models/{{detection_model_id}}/"
+            name: Update PreTrained Detection Model
+            meta:
+              id: req_80d51b7b1b9747869cccbfa6ccd6dcf3
+              created: 1774481109653
+              modified: 1774481109653
+              isPrivate: false
+              description: Update metadata of an existing pretrained detection model (name,
+                description, enabled)
+              sortKey: -1774481109006
+            method: PUT
+            body:
+              mimeType: text/plain
+              text: |-
+                {
+                  "name": "yolov8n-updated",
+                  "description": "Updated YOLOv8 Nano model",
+                  "enabled": true
+                }
+            headers:
+              - name: Content-Type
+                value: application/json
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - url: "{{base_url}}/api/pretrained-detection-models/{{detection_model_id}}/"
+            name: Get Single PreTrained Detection Model
+            meta:
+              id: req_cde80406544441c09a7ec37a32b2b553
+              created: 1774481109653
+              modified: 1774481109653
+              isPrivate: false
+              description: Get details of a specific pretrained detection model by ID
+              sortKey: -1774481109009
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_9718613f5b10739172a7425c9a460f990ac00ea9
+    created: 1775506577972
+    modified: 1775506577972
+environments:
+  name: Base Environment
+  meta:
+    id: env_9718613f5b10739172a7425c9a460f990ac00ea9
+    created: 1775506577971
+    modified: 1775506633817
+    isPrivate: false
+  data:
+    base_url: http://dev-dsk-cesarmg-1d-ddce7a67.us-east-1.amazon.com:8000
